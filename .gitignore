@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+merlin-venv/
+
+# estado local
+data/
+scrolls/perfil_usuario.md
+scrolls/*.txt
+
+# chroma
+*.sqlite*
