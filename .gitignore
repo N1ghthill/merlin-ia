@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+merlin-venv/
+*.egg-info/
+.dist-info/
+
+# Local data / privacy
+data/
+!data/.gitkeep
+
+# Scrolls podem conter info pessoal
+scrolls/
+!scrolls/README.md
+
+# OS/editor
+.DS_Store
+.idea/
+.vscode/
