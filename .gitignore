@@ -1,9 +1,21 @@
+<<<<<<< HEAD
+=======
+# runtime state
+data/history.jsonl
+data/profile.json
+data/chroma/
+logs/*.log
+
+# venv
+.venv/
+>>>>>>> 0fc09c8 (docs: add README + changelog (memória semântica e RAG))
 __pycache__/
 *.pyc
 .venv/
 venv/
 merlin-venv/
 
+<<<<<<< HEAD
 # estado local
 data/
 scrolls/perfil_usuario.md
@@ -11,3 +23,5 @@ scrolls/*.txt
 
 # chroma
 *.sqlite*
+=======
+>>>>>>> 0fc09c8 (docs: add README + changelog (memória semântica e RAG))
