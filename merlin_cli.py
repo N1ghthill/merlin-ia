@@ -4,13 +4,41 @@ import json
 import glob
 import hashlib
 import subprocess
+import time
+import uuid
 from datetime import datetime
 from typing import List, Dict, Any, Tuple
+from collections import deque
 
 import ollama
 import chromadb
 from chromadb.config import Settings
 from sentence_transformers import SentenceTransformer
+
+try:
+    from merlin.tools.linux_tool import LinuxTool
+except Exception:
+    LinuxTool = None
+
+try:
+    from merlin.handlers.linux_handlers import (
+        diagnose_service,
+        install_and_enable,
+        harden_ssh,
+        harden_firewall,
+        summarize_actions,
+    )
+except Exception:
+    diagnose_service = None
+    install_and_enable = None
+    harden_ssh = None
+    harden_firewall = None
+    summarize_actions = None
+
+try:
+    from merlin.handlers.linux_intents import detect_intent
+except Exception:
+    detect_intent = None
 
 
 MODEL = "qwen2.5:7b"
@@ -38,6 +66,8 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 SCROLLS_DIR = os.path.join(BASE_DIR, "scrolls")
 HISTORY_PATH = os.path.join(DATA_DIR, "history.jsonl")
+LINUX_ACTIONS_PATH = os.path.join(DATA_DIR, "linux_actions.jsonl")
+LINUX_PENDING_PATH = os.path.join(DATA_DIR, "linux_pending.json")
 CHROMA_DIR = os.path.join(DATA_DIR, "chroma")
 RAG_INDEXER_PATH = os.path.join(BASE_DIR, "rag_indexer.py")
 
@@ -72,6 +102,228 @@ def sha1_text(text: str) -> str:
 def append_jsonl(path: str, obj: dict) -> None:
     with open(path, "a", encoding="utf-8") as f:
         f.write(json.dumps(obj, ensure_ascii=False) + "\n")
+
+
+def _truncate_text(text: str, max_chars: int) -> str:
+    if max_chars <= 0:
+        return text
+    if len(text) <= max_chars:
+        return text
+    return text[:max_chars] + f"\n[truncated at {max_chars} chars]"
+
+
+def _summarize_linux_result(res: Dict[str, Any], max_chars: int) -> Dict[str, Any]:
+    summary: Dict[str, Any] = {}
+    for k in ("ok", "dry_run", "rc", "cmd", "error"):
+        if k in res:
+            summary[k] = res.get(k)
+    stdout = res.get("stdout")
+    stderr = res.get("stderr")
+    if isinstance(stdout, str) and stdout:
+        summary["stdout"] = _truncate_text(stdout, max_chars)
+    if isinstance(stderr, str) and stderr:
+        summary["stderr"] = _truncate_text(stderr, max_chars)
+    return summary
+
+
+def impact_summary(actions: List[Dict[str, Any]], results: List[Dict[str, Any]], max_cmd_chars: int = 300) -> List[str]:
+    lines: List[str] = []
+    risk_score = 0
+    saw_write = False
+    for action in actions:
+        action_type = action.get("type", "unknown")
+        args = action.get("args", {})
+        if action_type == "pkg.install":
+            pkgs = args.get("packages", [])
+            lines.append(f"Instalar pacotes: {', '.join(pkgs) if pkgs else '(nenhum)'}")
+            saw_write = True
+            risk_score += 2
+        elif action_type == "service.control":
+            operation = args.get("operation")
+            lines.append(f"Operação de serviço: {args.get('service')} -> {operation}")
+            saw_write = True
+            if operation in {"restart", "stop", "disable"}:
+                risk_score += 2
+            else:
+                risk_score += 1
+        elif action_type == "ansible.playbook":
+            lines.append(f"Executar playbook: {args.get('playbook')}")
+            saw_write = True
+            risk_score += 3
+            if any(key in str(args.get("playbook", "")).lower() for key in ("ssh", "firewall", "ufw")):
+                risk_score += 2
+        else:
+            lines.append(f"Ação: {action_type} {args}")
+
+    cmds: List[str] = []
+    for res in results:
+        if isinstance(res, dict) and res.get("cmd"):
+            cmds.append(str(res.get("cmd")))
+    if cmds:
+        joined = " ; ".join(cmds)
+        if len(joined) > max_cmd_chars:
+            joined = joined[:max_cmd_chars] + f"... [truncated {max_cmd_chars} chars]"
+        lines.append(f"Comandos previstos: {joined}")
+
+    if risk_score <= 1:
+        risk_label = "Baixo"
+    elif risk_score <= 3:
+        risk_label = "Médio"
+    else:
+        risk_label = "Alto"
+    lines.append(f"Risco estimado: {risk_label}")
+
+    if saw_write:
+        lines.append("Impacto: pode alterar o sistema (instalações, reinícios, mudanças de configuração).")
+    return lines
+
+
+def diff_summary(results: List[Dict[str, Any]]) -> str | None:
+    add = 0
+    delete = 0
+    for res in results:
+        out = res.get("stdout")
+        if not isinstance(out, str):
+            continue
+        for line in out.splitlines():
+            if line.startswith("+++ ") or line.startswith("--- "):
+                continue
+            if line.startswith("+"):
+                add += 1
+            elif line.startswith("-"):
+                delete += 1
+    if add or delete:
+        return f"Preview diff: +{add} -{delete} (ansible --diff)"
+    return None
+
+
+def record_linux_results(
+    path: str,
+    request_id: str,
+    actions: List[Dict[str, Any]],
+    results: List[Dict[str, Any]],
+    mode: str,
+    max_chars: int,
+) -> None:
+    entry = {
+        "ts": now_iso(),
+        "request_id": request_id,
+        "mode": mode,
+        "actions": actions,
+        "results": [_summarize_linux_result(r, max_chars) for r in results],
+    }
+    append_jsonl(path, entry)
+
+
+def format_linux_action_for_index(
+    request_id: str,
+    mode: str,
+    actions: List[Dict[str, Any]],
+    results: List[Dict[str, Any]],
+    max_chars: int,
+) -> str:
+    lines: List[str] = []
+    lines.append("LINUX_ACTION")
+    lines.append(f"request_id: {request_id}")
+    lines.append(f"mode: {mode}")
+    lines.append("")
+    lines.append("actions:")
+    for action in actions:
+        action_type = action.get("type", "unknown")
+        args = action.get("args", {})
+        lines.append(f"- {action_type} {args}")
+    lines.append("")
+    lines.append("results:")
+    for idx, res in enumerate(results, start=1):
+        summary = _summarize_linux_result(res, max_chars)
+        lines.append(f"[{idx}] {summary}")
+    return "\n".join(lines)
+
+
+def index_linux_action(
+    embedder_cache: Dict[str, Any],
+    request_id: str,
+    mode: str,
+    actions: List[Dict[str, Any]],
+    results: List[Dict[str, Any]],
+    max_chars: int,
+) -> None:
+    try:
+        text = format_linux_action_for_index(request_id, mode, actions, results, max_chars)
+        if not text.strip():
+            return
+        col = get_collection()
+        embedder = ensure_embedder(embedder_cache)
+        doc_id = f"linux_action:{request_id}:{sha1_text(text)[:12]}"
+        chroma_add_text(
+            col,
+            embedder,
+            doc_id=doc_id,
+            text=text,
+            metadata={"source": "linux_action", "request_id": request_id, "mode": mode},
+        )
+    except Exception:
+        # Avoid breaking CLI if RAG index fails
+        pass
+
+
+def tail_linux_actions(path: str, n: int = 5) -> List[Dict[str, Any]]:
+    if not os.path.exists(path):
+        return []
+    dq = deque(maxlen=n)
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            dq.append(line)
+    items: List[Dict[str, Any]] = []
+    for line in dq:
+        try:
+            items.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    return items
+
+
+def load_pending_actions(path: str) -> Dict[str, Dict[str, Any]]:
+    if not os.path.exists(path):
+        return {}
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    now = time.time()
+    pending: Dict[str, Dict[str, Any]] = {}
+    for req_id, item in data.items():
+        if not isinstance(item, dict):
+            continue
+        expires_at = item.get("expires_at")
+        actions = item.get("actions")
+        if not isinstance(expires_at, (int, float)):
+            continue
+        if expires_at <= now:
+            continue
+        if not isinstance(actions, list) or not actions:
+            continue
+        pending[str(req_id)] = {
+            "actions": actions,
+            "expires_at": float(expires_at),
+        }
+    return pending
+
+
+def save_pending_actions(path: str, pending: Dict[str, Dict[str, Any]]) -> None:
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(pending, f, ensure_ascii=False, indent=2)
+
+
+def cleanup_pending_actions(pending: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    now = time.time()
+    return {k: v for k, v in pending.items() if v.get("expires_at", 0) > now}
 
 
 def load_history(path: str) -> List[Dict[str, str]]:
@@ -495,6 +747,16 @@ def cmd_help():
     print("  /sources         - mostra as últimas fontes recuperadas")
     print("  /profile         - mostra o perfil canônico atual")
     print("  /set K V         - define campo do perfil (ex: /set nome Irving)")
+    print("  /linux TYPE JSON - chama linux_tool em dry-run (ex: /linux read.os_release {})")
+    print("  /linux-exec CONFIRM EXECUTE <request_id> - executa ação pendente")
+    print("  /linux-pending  - lista ações pendentes")
+    print("  /linux-pending show <request_id> - mostra detalhes da ação pendente")
+    print("  /linux-diagnose <service> [lines] - diagnóstico rápido (read-only)")
+    print("  /linux-install <service> [manager] - instala e habilita serviço (dry-run)")
+    print("  /linux-harden [playbook] - hardening via playbook (dry-run)")
+    print("  /linux-auto on|off|status - auto-detectar intents Linux no chat")
+    print("  /linux-history [N] - mostra últimas ações Linux")
+    print("  /linux-reload-acl - recarrega ACL do executor")
     print("  exit             - sair\n")
 
 
@@ -505,6 +767,29 @@ def main():
     top_k = DEFAULT_TOP_K
     last_rag_sources: List[str] = []
     embedder_cache: Dict[str, Any] = {}
+    linux_tool = LinuxTool() if LinuxTool else None
+    pending_linux_actions: Dict[str, Dict[str, Any]] = cleanup_pending_actions(load_pending_actions(LINUX_PENDING_PATH))
+    save_pending_actions(LINUX_PENDING_PATH, pending_linux_actions)
+    try:
+        pending_ttl_seconds = int(os.getenv("LINUX_PENDING_TTL", "300") or "300")
+    except ValueError:
+        pending_ttl_seconds = 300
+    linux_auto = os.getenv("LINUX_AUTO_INTENTS", "0") in {"1", "true", "yes", "on"}
+    linux_log_actions = os.getenv("LINUX_LOG_ACTIONS", "1") in {"1", "true", "yes", "on"}
+    try:
+        linux_log_max_chars = int(os.getenv("LINUX_LOG_MAX_CHARS", "2000") or "2000")
+    except ValueError:
+        linux_log_max_chars = 2000
+    linux_rag_index = os.getenv("LINUX_RAG_INDEX", "1") in {"1", "true", "yes", "on"}
+    try:
+        linux_rag_max_chars = int(os.getenv("LINUX_RAG_MAX_CHARS", "2000") or "2000")
+    except ValueError:
+        linux_rag_max_chars = 2000
+    linux_read_only = os.getenv("LINUX_READ_ONLY", "0") in {"1", "true", "yes", "on"}
+    try:
+        linux_impact_cmd_chars = int(os.getenv("LINUX_IMPACT_CMD_CHARS", "300") or "300")
+    except ValueError:
+        linux_impact_cmd_chars = 300
 
     # perfil
     profile, raw_profile = load_profile()
@@ -533,6 +818,8 @@ def main():
     print(f"📚 Pergaminhos: {SCROLLS_DIR}")
     print(f"👤 Perfil: {PROFILE_PATH}")
     print(f"🧠 Chroma: {CHROMA_DIR} | RAG={'ON' if rag_enabled else 'OFF'} | top_k={top_k}")
+    if linux_read_only:
+        print("🔒 Linux read-only mode: confirmações bloqueadas (LINUX_READ_ONLY=1)")
 
     if not has_system:
         append_jsonl(HISTORY_PATH, {"ts": now_iso(), "role": "system", "content": SYSTEM_PROMPT})
@@ -660,6 +947,554 @@ def main():
                 for item in last_rag_sources:
                     print(f"- {item}")
             continue
+
+        if user.startswith("/linux-exec"):
+            if linux_tool is None:
+                print("⚠️  LinuxTool não disponível (dependências ausentes).")
+                continue
+            if linux_read_only:
+                print("🔒 Linux read-only mode ativo. Execução bloqueada.")
+                continue
+            pending_linux_actions = cleanup_pending_actions(pending_linux_actions)
+            parts = user.split()
+            if len(parts) != 4 or parts[1].upper() != "CONFIRM" or parts[2].upper() != "EXECUTE":
+                print("Uso: /linux-exec CONFIRM EXECUTE <request_id>")
+                continue
+            request_id = parts[3].strip()
+            item = pending_linux_actions.get(request_id)
+            if not item:
+                print("Ação pendente não encontrada ou expirada.")
+                continue
+            if item.get("expires_at", 0) < time.time():
+                pending_linux_actions.pop(request_id, None)
+                save_pending_actions(LINUX_PENDING_PATH, cleanup_pending_actions(pending_linux_actions))
+                print("Ação pendente expirada.")
+                continue
+            actions = item.get("actions")
+            if not actions:
+                action_type = item.get("action_type")
+                args = item.get("args") or {}
+                actions = [{"type": action_type, "args": args}]
+            try:
+                results = []
+                for action in actions:
+                    res = linux_tool.run(
+                        action.get("type"),
+                        args=action.get("args") or {},
+                        dry_run=False,
+                        request_id=request_id,
+                    )
+                    results.append(res)
+                print(json.dumps(results, ensure_ascii=False, indent=2))
+                if linux_log_actions:
+                    record_linux_results(
+                        LINUX_ACTIONS_PATH,
+                        request_id,
+                        actions,
+                        results,
+                        mode="execute",
+                        max_chars=linux_log_max_chars,
+                    )
+                if linux_rag_index:
+                    index_linux_action(
+                        embedder_cache,
+                        request_id,
+                        "execute",
+                        actions,
+                        results,
+                        max_chars=linux_rag_max_chars,
+                    )
+            except Exception as e:
+                print(f"⚠️  Falha ao executar linux_tool: {e}")
+            finally:
+                pending_linux_actions.pop(request_id, None)
+                save_pending_actions(LINUX_PENDING_PATH, cleanup_pending_actions(pending_linux_actions))
+            continue
+
+        if user.upper().startswith("CONFIRM EXECUTE "):
+            if linux_tool is None:
+                print("⚠️  LinuxTool não disponível (dependências ausentes).")
+                continue
+            if linux_read_only:
+                print("🔒 Linux read-only mode ativo. Execução bloqueada.")
+                continue
+            pending_linux_actions = cleanup_pending_actions(pending_linux_actions)
+            parts = user.split()
+            if len(parts) != 3:
+                print("Uso: CONFIRM EXECUTE <request_id>")
+                continue
+            request_id = parts[2].strip()
+            item = pending_linux_actions.get(request_id)
+            if not item:
+                print("Ação pendente não encontrada ou expirada.")
+                continue
+            if item.get("expires_at", 0) < time.time():
+                pending_linux_actions.pop(request_id, None)
+                save_pending_actions(LINUX_PENDING_PATH, cleanup_pending_actions(pending_linux_actions))
+                print("Ação pendente expirada.")
+                continue
+            actions = item.get("actions") or []
+            try:
+                results = []
+                for action in actions:
+                    res = linux_tool.run(
+                        action.get("type"),
+                        args=action.get("args") or {},
+                        dry_run=False,
+                        request_id=request_id,
+                    )
+                    results.append(res)
+                print(json.dumps(results, ensure_ascii=False, indent=2))
+                if linux_log_actions:
+                    record_linux_results(
+                        LINUX_ACTIONS_PATH,
+                        request_id,
+                        actions,
+                        results,
+                        mode="execute",
+                        max_chars=linux_log_max_chars,
+                    )
+                if linux_rag_index:
+                    index_linux_action(
+                        embedder_cache,
+                        request_id,
+                        "execute",
+                        actions,
+                        results,
+                        max_chars=linux_rag_max_chars,
+                    )
+            except Exception as e:
+                print(f"⚠️  Falha ao executar linux_tool: {e}")
+            finally:
+                pending_linux_actions.pop(request_id, None)
+                save_pending_actions(LINUX_PENDING_PATH, cleanup_pending_actions(pending_linux_actions))
+            continue
+
+        if user.startswith("/linux-pending"):
+            parts = user.split()
+            pending_linux_actions = cleanup_pending_actions(pending_linux_actions)
+            save_pending_actions(LINUX_PENDING_PATH, pending_linux_actions)
+            if len(parts) >= 3 and parts[1] == "show":
+                req_id = parts[2].strip()
+                item = pending_linux_actions.get(req_id)
+                if not item:
+                    print("Ação pendente não encontrada ou expirada.")
+                    continue
+                ttl = int(item.get("expires_at", 0) - now)
+                actions = item.get("actions") or []
+                print(f"request_id: {req_id} | expira em {ttl}s")
+                if summarize_actions:
+                    print("Ações:")
+                    for line in summarize_actions(actions):
+                        print(f"- {line}")
+                else:
+                    print(f"Ações: {actions}")
+                continue
+
+            if not pending_linux_actions:
+                print("Nenhuma ação pendente.")
+                continue
+            print("Ações pendentes:")
+            for req_id, item in pending_linux_actions.items():
+                ttl = int(item.get("expires_at", 0) - now)
+                actions = item.get("actions")
+                if actions:
+                    print(f"- {req_id} | {len(actions)} ação(ões) | expira em {ttl}s")
+                else:
+                    print(f"- {req_id} | {item.get('action_type')} | expira em {ttl}s")
+            continue
+
+        if user.startswith("/linux-reload-acl"):
+            if linux_tool is None:
+                print("⚠️  LinuxTool não disponível (dependências ausentes).")
+                continue
+            try:
+                r = linux_tool.session.post(f"{linux_tool.base}/reload_acl", timeout=10)
+                print(json.dumps(r.json(), ensure_ascii=False, indent=2))
+            except Exception as e:
+                print(f"⚠️  Falha ao recarregar ACL: {e}")
+            continue
+
+        if user.startswith("/linux-history"):
+            parts = user.split()
+            n = 5
+            if len(parts) >= 2 and parts[1].isdigit():
+                n = max(1, min(50, int(parts[1])))
+            items = tail_linux_actions(LINUX_ACTIONS_PATH, n=n)
+            if not items:
+                print("Nenhum histórico encontrado.")
+                continue
+            for item in items:
+                ts = item.get("ts", "")
+                mode = item.get("mode", "")
+                req = item.get("request_id", "")
+                actions = item.get("actions", [])
+                print(f"- {ts} | {mode} | {req} | ações={len(actions)}")
+            continue
+
+        if user.startswith("/linux-auto"):
+            parts = user.split()
+            if len(parts) == 1 or parts[1] == "status":
+                print(f"linux_auto={'ON' if linux_auto else 'OFF'}")
+                continue
+            if parts[1] in {"on", "ON"}:
+                linux_auto = True
+                print("linux_auto=ON")
+                continue
+            if parts[1] in {"off", "OFF"}:
+                linux_auto = False
+                print("linux_auto=OFF")
+                continue
+            print("Uso: /linux-auto on|off|status")
+            continue
+
+        if user.startswith("/linux-diagnose"):
+            if linux_tool is None or diagnose_service is None:
+                print("⚠️  LinuxTool/handlers não disponíveis.")
+                continue
+            parts = user.split()
+            if len(parts) < 2:
+                print("Uso: /linux-diagnose <service> [lines]")
+                continue
+            service = parts[1].strip()
+            lines = 200
+            if len(parts) >= 3 and parts[2].isdigit():
+                lines = int(parts[2])
+            actions = diagnose_service(service, lines=lines)
+            if summarize_actions:
+                print("Plano:")
+                for line in summarize_actions(actions):
+                    print(f"- {line}")
+            request_id = str(uuid.uuid4())
+            results = []
+            try:
+                for action in actions:
+                    res = linux_tool.run(
+                        action.get("type"),
+                        args=action.get("args") or {},
+                        dry_run=True,
+                        request_id=request_id,
+                    )
+                    results.append(res)
+                print(json.dumps(results, ensure_ascii=False, indent=2))
+                if linux_log_actions:
+                    record_linux_results(
+                        LINUX_ACTIONS_PATH,
+                        request_id,
+                        actions,
+                        results,
+                        mode="diagnose",
+                        max_chars=linux_log_max_chars,
+                    )
+            except Exception as e:
+                print(f"⚠️  Falha ao executar diagnóstico: {e}")
+            continue
+
+        if user.startswith("/linux-install"):
+            if linux_tool is None or install_and_enable is None:
+                print("⚠️  LinuxTool/handlers não disponíveis.")
+                continue
+            parts = user.split()
+            if len(parts) < 2:
+                print("Uso: /linux-install <service> [manager]")
+                continue
+            service = parts[1].strip()
+            manager = parts[2].strip() if len(parts) >= 3 else "auto"
+            actions = install_and_enable(service, manager=manager)
+            if summarize_actions:
+                print("Plano:")
+                for line in summarize_actions(actions):
+                    print(f"- {line}")
+            request_id = str(uuid.uuid4())
+            results = []
+            try:
+                for action in actions:
+                    res = linux_tool.run(
+                        action.get("type"),
+                        args=action.get("args") or {},
+                        dry_run=True,
+                        request_id=request_id,
+                    )
+                    results.append(res)
+                print(json.dumps(results, ensure_ascii=False, indent=2))
+                if linux_log_actions:
+                    record_linux_results(
+                        LINUX_ACTIONS_PATH,
+                        request_id,
+                        actions,
+                        results,
+                        mode="install_dry_run",
+                        max_chars=linux_log_max_chars,
+                    )
+                print("Impacto estimado:")
+                for line in impact_summary(actions, results, max_cmd_chars=linux_impact_cmd_chars):
+                    print(f"- {line}")
+                diff_line = diff_summary(results)
+                if diff_line:
+                    print(f"- {diff_line}")
+                if any(r.get("dry_run") is True for r in results):
+                    pending_linux_actions[request_id] = {
+                        "actions": actions,
+                        "expires_at": time.time() + pending_ttl_seconds,
+                    }
+                    save_pending_actions(LINUX_PENDING_PATH, cleanup_pending_actions(pending_linux_actions))
+                    print(
+                        f"✅ Ações pendentes registradas. Para executar use: "
+                        f"/linux-exec CONFIRM EXECUTE {request_id} (expira em {pending_ttl_seconds}s)"
+                    )
+            except Exception as e:
+                print(f"⚠️  Falha ao preparar instalação: {e}")
+            continue
+
+        if user.startswith("/linux-harden"):
+            if linux_tool is None or harden_ssh is None:
+                print("⚠️  LinuxTool/handlers não disponíveis.")
+                continue
+            parts = user.split()
+            playbook = parts[1].strip() if len(parts) >= 2 else "ssh_hardening.yml"
+            actions = harden_ssh(playbook=playbook)
+            if summarize_actions:
+                print("Plano:")
+                for line in summarize_actions(actions):
+                    print(f"- {line}")
+            request_id = str(uuid.uuid4())
+            results = []
+            try:
+                for action in actions:
+                    res = linux_tool.run(
+                        action.get("type"),
+                        args=action.get("args") or {},
+                        dry_run=True,
+                        request_id=request_id,
+                    )
+                    results.append(res)
+                print(json.dumps(results, ensure_ascii=False, indent=2))
+                if linux_log_actions:
+                    record_linux_results(
+                        LINUX_ACTIONS_PATH,
+                        request_id,
+                        actions,
+                        results,
+                        mode="harden_dry_run",
+                        max_chars=linux_log_max_chars,
+                    )
+                print("Impacto estimado:")
+                for line in impact_summary(actions, results, max_cmd_chars=linux_impact_cmd_chars):
+                    print(f"- {line}")
+                diff_line = diff_summary(results)
+                if diff_line:
+                    print(f"- {diff_line}")
+                if any(r.get("dry_run") is True for r in results):
+                    pending_linux_actions[request_id] = {
+                        "actions": actions,
+                        "expires_at": time.time() + pending_ttl_seconds,
+                    }
+                    save_pending_actions(LINUX_PENDING_PATH, cleanup_pending_actions(pending_linux_actions))
+                    print(
+                        f"✅ Ações pendentes registradas. Para executar use: "
+                        f"/linux-exec CONFIRM EXECUTE {request_id} (expira em {pending_ttl_seconds}s)"
+                    )
+            except Exception as e:
+                print(f"⚠️  Falha ao preparar hardening: {e}")
+            continue
+
+        if user.startswith("/linux"):
+            if linux_tool is None:
+                print("⚠️  LinuxTool não disponível (dependências ausentes).")
+                continue
+
+            parts = user.split(" ", 2)
+            if len(parts) < 2:
+                print("Uso: /linux TYPE JSON_ARGS")
+                print("Ex: /linux read.os_release {}")
+                continue
+
+            action_type = parts[1].strip()
+            if action_type == "whoami":
+                try:
+                    res = linux_tool.whoami()
+                    print(json.dumps(res, ensure_ascii=False, indent=2))
+                except Exception as e:
+                    print(f"⚠️  Falha ao chamar linux_tool.whoami: {e}")
+                continue
+
+            args = {}
+            if len(parts) == 3 and parts[2].strip():
+                try:
+                    args = json.loads(parts[2].strip())
+                    if not isinstance(args, dict):
+                        print("JSON_ARGS deve ser um objeto JSON.")
+                        continue
+                except json.JSONDecodeError:
+                    print("JSON_ARGS inválido. Use um objeto JSON, ex: {\"service\":\"nginx\"}")
+                    continue
+
+            request_id = str(uuid.uuid4())
+            try:
+                res = linux_tool.run(action_type, args=args, dry_run=True, request_id=request_id)
+                print(json.dumps(res, ensure_ascii=False, indent=2))
+                if res.get("dry_run") is True:
+                    pending_linux_actions[request_id] = {
+                        "actions": [{"type": action_type, "args": args}],
+                        "expires_at": time.time() + pending_ttl_seconds,
+                    }
+                    save_pending_actions(LINUX_PENDING_PATH, cleanup_pending_actions(pending_linux_actions))
+                    print(
+                        f"✅ Ação pendente registrada. Para executar use: "
+                        f"/linux-exec CONFIRM EXECUTE {request_id} (expira em {pending_ttl_seconds}s)"
+                    )
+                    print("Impacto estimado:")
+                    for line in impact_summary([{"type": action_type, "args": args}], [res], max_cmd_chars=linux_impact_cmd_chars):
+                        print(f"- {line}")
+                    diff_line = diff_summary([res])
+                    if diff_line:
+                        print(f"- {diff_line}")
+                if linux_log_actions:
+                    record_linux_results(
+                        LINUX_ACTIONS_PATH,
+                        request_id,
+                        [{"type": action_type, "args": args}],
+                        [res],
+                        mode="manual_dry_run",
+                        max_chars=linux_log_max_chars,
+                    )
+            except Exception as e:
+                print(f"⚠️  Falha ao chamar linux_tool: {e}")
+            continue
+
+        # Auto-intent detection (optional)
+        if linux_auto and linux_tool is not None and detect_intent is not None:
+            intent = detect_intent(user)
+            if intent:
+                itype = intent.get("intent")
+                if itype == "diagnose" and diagnose_service:
+                    actions = diagnose_service(intent.get("service"), lines=intent.get("lines", 200))
+                    if summarize_actions:
+                        print("Plano:")
+                        for line in summarize_actions(actions):
+                            print(f"- {line}")
+                    request_id = str(uuid.uuid4())
+                    results = []
+                    try:
+                        for action in actions:
+                            res = linux_tool.run(
+                                action.get("type"),
+                                args=action.get("args") or {},
+                                dry_run=True,
+                                request_id=request_id,
+                            )
+                            results.append(res)
+                        print(json.dumps(results, ensure_ascii=False, indent=2))
+                        if linux_log_actions:
+                            record_linux_results(
+                                LINUX_ACTIONS_PATH,
+                                request_id,
+                                actions,
+                                results,
+                                mode="auto_diagnose",
+                                max_chars=linux_log_max_chars,
+                            )
+                    except Exception as e:
+                        print(f"⚠️  Falha ao executar diagnóstico: {e}")
+                    continue
+                if itype == "install" and install_and_enable:
+                    actions = install_and_enable(intent.get("service"), manager=intent.get("manager", "auto"))
+                    if summarize_actions:
+                        print("Plano:")
+                        for line in summarize_actions(actions):
+                            print(f"- {line}")
+                    request_id = str(uuid.uuid4())
+                    results = []
+                    try:
+                        for action in actions:
+                            res = linux_tool.run(
+                                action.get("type"),
+                                args=action.get("args") or {},
+                                dry_run=True,
+                                request_id=request_id,
+                            )
+                            results.append(res)
+                        print(json.dumps(results, ensure_ascii=False, indent=2))
+                        if linux_log_actions:
+                            record_linux_results(
+                                LINUX_ACTIONS_PATH,
+                                request_id,
+                                actions,
+                                results,
+                                mode="auto_install_dry_run",
+                                max_chars=linux_log_max_chars,
+                            )
+                        print("Impacto estimado:")
+                        for line in impact_summary(actions, results, max_cmd_chars=linux_impact_cmd_chars):
+                            print(f"- {line}")
+                        diff_line = diff_summary(results)
+                        if diff_line:
+                            print(f"- {diff_line}")
+                        if any(r.get("dry_run") is True for r in results):
+                            pending_linux_actions[request_id] = {
+                                "actions": actions,
+                                "expires_at": time.time() + pending_ttl_seconds,
+                            }
+                            save_pending_actions(LINUX_PENDING_PATH, cleanup_pending_actions(pending_linux_actions))
+                            print(
+                                f"✅ Ações pendentes registradas. Para executar use: "
+                                f"/linux-exec CONFIRM EXECUTE {request_id} (expira em {pending_ttl_seconds}s)"
+                            )
+                    except Exception as e:
+                        print(f"⚠️  Falha ao preparar instalação: {e}")
+                    continue
+                if itype == "harden":
+                    target = intent.get("target")
+                    if target == "firewall" and harden_firewall:
+                        actions = harden_firewall()
+                    else:
+                        actions = harden_ssh() if harden_ssh else []
+                    if actions:
+                        if summarize_actions:
+                            print("Plano:")
+                            for line in summarize_actions(actions):
+                                print(f"- {line}")
+                        request_id = str(uuid.uuid4())
+                        results = []
+                        try:
+                            for action in actions:
+                                res = linux_tool.run(
+                                    action.get("type"),
+                                    args=action.get("args") or {},
+                                    dry_run=True,
+                                    request_id=request_id,
+                                )
+                                results.append(res)
+                            print(json.dumps(results, ensure_ascii=False, indent=2))
+                            if linux_log_actions:
+                                record_linux_results(
+                                    LINUX_ACTIONS_PATH,
+                                    request_id,
+                                    actions,
+                                    results,
+                                    mode="auto_harden_dry_run",
+                                    max_chars=linux_log_max_chars,
+                                )
+                            print("Impacto estimado:")
+                            for line in impact_summary(actions, results, max_cmd_chars=linux_impact_cmd_chars):
+                                print(f"- {line}")
+                            diff_line = diff_summary(results)
+                            if diff_line:
+                                print(f"- {diff_line}")
+                            if any(r.get("dry_run") is True for r in results):
+                                pending_linux_actions[request_id] = {
+                                    "actions": actions,
+                                    "expires_at": time.time() + pending_ttl_seconds,
+                                }
+                                save_pending_actions(LINUX_PENDING_PATH, cleanup_pending_actions(pending_linux_actions))
+                                print(
+                                    f"✅ Ações pendentes registradas. Para executar use: "
+                                    f"/linux-exec CONFIRM EXECUTE {request_id} (expira em {pending_ttl_seconds}s)"
+                                )
+                        except Exception as e:
+                            print(f"⚠️  Falha ao preparar hardening: {e}")
+                    continue
+
 
         # -------------
         # fluxo normal

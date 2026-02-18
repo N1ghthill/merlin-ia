@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PATH="/usr/sbin:/usr/bin:/sbin:/bin"
+
+if [ "$#" -lt 1 ]; then
+  echo "usage: linux-agent-ansible-playbook <playbook> [args...]" >&2
+  exit 64
+fi
+
+ansible_bin="$(command -v ansible-playbook || true)"
+if [ -z "$ansible_bin" ]; then
+  echo "ansible-playbook not found" >&2
+  exit 127
+fi
+
+exec "$ansible_bin" "$@"

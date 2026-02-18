@@ -1,0 +1,13 @@
+[Unit]
+Description=Linux Agent Executor Socket
+
+[Socket]
+ListenStream=/run/linux-agent/agent.sock
+SocketUser=linux-agent
+SocketGroup=linux-agent
+SocketMode=0660
+RemoveOnStop=yes
+DirectoryMode=0750
+
+[Install]
+WantedBy=sockets.target

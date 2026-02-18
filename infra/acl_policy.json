@@ -1,0 +1,15 @@
+{
+  "read.os_release": {"allow_read": true, "allow_write": false},
+  "read.lsb_release": {"allow_read": true, "allow_write": false},
+  "read.packages": {"allow_read": true, "allow_write": false},
+  "read.service_status": {"allow_read": true, "allow_write": false},
+  "read.service_enabled": {"allow_read": true, "allow_write": false},
+  "read.journalctl": {"allow_read": true, "allow_write": false},
+  "read.ss_listen": {"allow_read": true, "allow_write": false},
+  "read.df": {"allow_read": true, "allow_write": false},
+  "read.free": {"allow_read": true, "allow_write": false},
+  "read.lsblk": {"allow_read": true, "allow_write": false},
+  "service.control": {"allow_read": false, "allow_write": true},
+  "pkg.install": {"allow_read": false, "allow_write": true},
+  "ansible.playbook": {"allow_read": false, "allow_write": true}
+}

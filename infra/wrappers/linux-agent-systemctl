@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PATH="/usr/sbin:/usr/bin:/sbin:/bin"
+
+if [ "$#" -ne 2 ]; then
+  echo "usage: linux-agent-systemctl <start|stop|restart|enable|disable> <service>" >&2
+  exit 64
+fi
+
+op="$1"
+svc="$2"
+
+case "$op" in
+  start|stop|restart|enable|disable) ;;
+  *)
+    echo "invalid operation: $op" >&2
+    exit 64
+    ;;
+esac
+
+if ! [[ "$svc" =~ ^[a-zA-Z0-9@._:-]+$ ]]; then
+  echo "invalid service name" >&2
+  exit 64
+fi
+
+systemctl_bin="$(command -v systemctl || true)"
+if [ -z "$systemctl_bin" ]; then
+  echo "systemctl not found" >&2
+  exit 127
+fi
+
+exec "$systemctl_bin" "$op" "$svc"

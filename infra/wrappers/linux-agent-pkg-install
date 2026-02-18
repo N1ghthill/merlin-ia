@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PATH="/usr/sbin:/usr/bin:/sbin:/bin"
+
+if [ "$#" -lt 2 ]; then
+  echo "usage: linux-agent-pkg-install <auto|apt|dnf|yum|pacman> <pkg...>" >&2
+  exit 64
+fi
+
+mgr="$1"
+shift
+
+if [ "$#" -lt 1 ]; then
+  echo "at least one package is required" >&2
+  exit 64
+fi
+
+for pkg in "$@"; do
+  if ! [[ "$pkg" =~ ^[a-zA-Z0-9._+-]+$ ]]; then
+    echo "invalid package name: $pkg" >&2
+    exit 64
+  fi
+done
+
+if [ "$mgr" = "auto" ]; then
+  if command -v apt-get >/dev/null 2>&1; then
+    mgr="apt"
+  elif command -v dnf >/dev/null 2>&1; then
+    mgr="dnf"
+  elif command -v yum >/dev/null 2>&1; then
+    mgr="yum"
+  elif command -v pacman >/dev/null 2>&1; then
+    mgr="pacman"
+  else
+    echo "no supported package manager found" >&2
+    exit 127
+  fi
+fi
+
+case "$mgr" in
+  apt)
+    apt_get="$(command -v apt-get || true)"
+    if [ -z "$apt_get" ]; then
+      echo "apt-get not found" >&2
+      exit 127
+    fi
+    "$apt_get" update
+    exec "$apt_get" install -y "$@"
+    ;;
+  dnf)
+    dnf_bin="$(command -v dnf || true)"
+    if [ -z "$dnf_bin" ]; then
+      echo "dnf not found" >&2
+      exit 127
+    fi
+    exec "$dnf_bin" install -y "$@"
+    ;;
+  yum)
+    yum_bin="$(command -v yum || true)"
+    if [ -z "$yum_bin" ]; then
+      echo "yum not found" >&2
+      exit 127
+    fi
+    exec "$yum_bin" install -y "$@"
+    ;;
+  pacman)
+    pacman_bin="$(command -v pacman || true)"
+    if [ -z "$pacman_bin" ]; then
+      echo "pacman not found" >&2
+      exit 127
+    fi
+    exec "$pacman_bin" -S --noconfirm "$@"
+    ;;
+  *)
+    echo "invalid package manager: $mgr" >&2
+    exit 64
+    ;;
+esac

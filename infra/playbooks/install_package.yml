@@ -1,0 +1,10 @@
+- hosts: localhost
+  connection: local
+  become: yes
+  vars:
+    pkg_name: "{{ pkg_name }}"
+  tasks:
+    - name: Ensure package is installed
+      package:
+        name: "{{ pkg_name }}"
+        state: present

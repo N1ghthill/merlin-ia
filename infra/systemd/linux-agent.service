@@ -1,0 +1,27 @@
+[Unit]
+Description=Linux Agent Executor
+After=network.target
+
+[Service]
+User=linux-agent
+Group=linux-agent
+ExecStart=/usr/bin/python3 /opt/linux-agent/executor/executor.py
+Restart=on-failure
+RuntimeDirectory=linux-agent
+RuntimeDirectoryMode=0750
+LogsDirectory=linux-agent
+LogsDirectoryMode=0750
+AmbientCapabilities=
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+ProtectHome=yes
+ReadOnlyPaths=/usr
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+PrivateDevices=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+MemoryDenyWriteExecute=yes
+
+[Install]
+WantedBy=multi-user.target

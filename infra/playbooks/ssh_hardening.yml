@@ -1,0 +1,19 @@
+- hosts: localhost
+  connection: local
+  become: yes
+  tasks:
+    - name: Backup sshd_config
+      copy:
+        src: /etc/ssh/sshd_config
+        dest: "/var/backups/sshd_config.{{ lookup('pipe','date +%s') }}"
+        remote_src: yes
+    - name: Set PermitRootLogin no
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PermitRootLogin'
+        line: 'PermitRootLogin no'
+        create: no
+    - name: Restart sshd
+      service:
+        name: ssh
+        state: restarted

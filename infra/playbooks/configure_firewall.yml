@@ -1,0 +1,16 @@
+- hosts: localhost
+  connection: local
+  become: yes
+  tasks:
+    - name: Ensure ufw is installed (Debian)
+      apt:
+        name: ufw
+        state: present
+      when: ansible_facts['pkg_mgr'] == 'apt'
+    - name: Allow ssh
+      ufw:
+        rule: allow
+        name: OpenSSH
+    - name: Enable ufw
+      ufw:
+        state: enabled

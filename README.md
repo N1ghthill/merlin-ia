@@ -72,13 +72,57 @@ pip install -r requirements.txt
 ### Ajuste o comando conforme o seu entrypoint (CLI/API).
 
 Rodar o Merlin
-python main.py
+python merlin_cli.py
 
 Indexar documentos (exemplo)
-python main.py --ingest ./docs
+python merlin_cli.py
+  # depois use /index_scrolls dentro do CLI
 
 Fazer uma pergunta
-python main.py --ask "Qual é o resumo do arquivo X?"
+  # dentro do CLI: digite sua pergunta normalmente
+
+## Quickstart (Linux Agent)
+1. Suba o executor (systemd socket):
+   - `sudo systemctl enable --now linux-agent.socket`
+2. Abra o Merlin:
+   - `python3 merlin_cli.py`
+3. Diagnóstico rápido:
+   - `/linux-diagnose ssh 50`
+4. Instalação (dry-run + confirmação):
+   - `/linux-install nginx`
+   - `CONFIRM EXECUTE <request_id>`
+
+## Linux Agent (CLI)
+Comandos úteis no CLI:
+- `/linux-diagnose <service> [lines]`
+- `/linux-install <service> [manager]`
+- `/linux-harden [playbook]`
+- `/linux-exec CONFIRM EXECUTE <request_id>`
+- `/linux-auto on|off|status`
+- `/linux-history [N]`
+- Pending actions persist in `data/linux_pending.json`
+- Linux actions can be indexed into RAG (env: `LINUX_RAG_INDEX=1`)
+- `/linux-pending show <request_id>`
+- Read-only lock (env: `LINUX_READ_ONLY=1`)
+- Smoke CLI: `tests/smoke_cli.sh`
+- `/linux-reload-acl`
+
+## Status
+Implementation status: `docs/10-linux-agent-status.md`
+
+## Ops
+- Logrotate template: `infra/logrotate/linux-agent`
+- Deploy guide: `docs/11-linux-agent-deploy.md`
+- Release checklist: `docs/13-linux-agent-release-checklist.md`
+- Makefile targets: `make test`, `make smoke`
+- Deploy script: `scripts/deploy_linux_agent.sh`
+- Post-deploy check: `scripts/post_deploy_check.sh`
+- Compatibility matrix: `docs/14-linux-agent-compatibility.md`
+- Requirements check: `scripts/check_requirements.sh`
+- Rollback script: `scripts/rollback_linux_agent.sh`
+- Final report: `docs/15-linux-agent-final-report.md`
+- Changelog: `docs/CHANGELOG.md`
+- Release notes: `docs/RELEASE.md`
 
 ## ⚙️ Configuração | Configuration
 

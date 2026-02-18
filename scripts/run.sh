@@ -15,5 +15,4 @@ export NUMEXPR_NUM_THREADS=14
 # Memória semântica: atualizar rápido (versão final de hoje)
 export MERLIN_PROFILE_UPDATE_EVERY=2
 
-exec python merlin.py
-
+exec python merlin_cli.py

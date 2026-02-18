@@ -1,0 +1,1 @@
+linux-agent ALL=(root) NOPASSWD: /opt/linux-agent/wrappers/linux-agent-systemctl, /opt/linux-agent/wrappers/linux-agent-pkg-install, /opt/linux-agent/wrappers/linux-agent-ansible-playbook
