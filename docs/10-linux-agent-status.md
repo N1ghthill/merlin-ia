@@ -35,6 +35,7 @@ This document summarizes what is implemented, expected behavior, and what still 
 - Requirements check script added.
 - Rollback script added.
 - Final report added.
+- Validation checklist added.
 
 ## Expected Behavior
 - Read actions execute immediately and return output.
@@ -65,6 +66,7 @@ This document summarizes what is implemented, expected behavior, and what still 
 - Post-deploy check script not validated.
 - Requirements check script not validated.
 - Rollback script not validated.
+- Validation checklist not validated.
 
 ## Known Limitations / Gaps
 - No full agent loop integration (intents are CLI-driven and auto-detected).

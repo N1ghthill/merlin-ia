@@ -123,6 +123,7 @@ Implementation status: `docs/10-linux-agent-status.md`
 - Final report: `docs/15-linux-agent-final-report.md`
 - Changelog: `docs/CHANGELOG.md`
 - Release notes: `docs/RELEASE.md`
+- Validation checklist: `docs/16-linux-agent-validation-checklist.md`
 
 ## ⚙️ Configuração | Configuration
 
