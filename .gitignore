@@ -1,27 +1,28 @@
-<<<<<<< HEAD
-=======
 # runtime state
-data/history.jsonl
-data/profile.json
-data/chroma/
+data/*
+!data/.gitkeep
 logs/*.log
 
-# venv
-.venv/
->>>>>>> 0fc09c8 (docs: add README + changelog (memória semântica e RAG))
+# user scrolls (local)
+scrolls/perfil_usuario.md
+scrolls/*.txt
+
+# python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# venv
 .venv/
 venv/
 merlin-venv/
 
-<<<<<<< HEAD
-# estado local
-data/
-scrolls/perfil_usuario.md
-scrolls/*.txt
-
-# chroma
+# chroma/sqlite
 *.sqlite*
-=======
->>>>>>> 0fc09c8 (docs: add README + changelog (memória semântica e RAG))
+
+# OS noise
+.DS_Store
