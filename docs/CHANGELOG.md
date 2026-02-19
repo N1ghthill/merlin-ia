@@ -25,7 +25,7 @@ All notable changes to this project will be documented in this file.
 - Testes não executados neste ambiente (pytest ausente).
 - Deploy e socket activation não validados em host real.
 
-## [0.1.1] - 2026-02-19
+## [0.2.1] - 2026-02-19
 
 ### Added
 - Linux Agent validation report (`docs/17-linux-agent-validation-report.md`).
