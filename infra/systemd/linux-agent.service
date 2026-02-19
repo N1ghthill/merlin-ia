@@ -5,7 +5,8 @@ After=network.target
 [Service]
 User=linux-agent
 Group=linux-agent
-ExecStart=/usr/bin/python3 /opt/linux-agent/executor/executor.py
+WorkingDirectory=/opt/linux-agent
+ExecStart=/usr/bin/python3 -m executor.executor
 Restart=on-failure
 RuntimeDirectory=linux-agent
 RuntimeDirectoryMode=0750

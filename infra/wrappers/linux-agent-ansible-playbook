@@ -8,6 +8,19 @@ if [ "$#" -lt 1 ]; then
   exit 64
 fi
 
+# Ensure Ansible temp dir is writable even when ProtectHome=yes
+tmp_dir="/var/tmp/ansible"
+mkdir -p "$tmp_dir"
+chmod 700 "$tmp_dir"
+export ANSIBLE_LOCAL_TEMP="$tmp_dir"
+export ANSIBLE_REMOTE_TMP="$tmp_dir"
+
+# Keep ansible home writable even with ProtectHome=yes
+ansible_home="/var/tmp/ansible-home"
+mkdir -p "$ansible_home"
+chmod 700 "$ansible_home"
+export HOME="$ansible_home"
+
 ansible_bin="$(command -v ansible-playbook || true)"
 if [ -z "$ansible_bin" ]; then
   echo "ansible-playbook not found" >&2

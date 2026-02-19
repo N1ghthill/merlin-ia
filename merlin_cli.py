@@ -1074,6 +1074,7 @@ def main():
             parts = user.split()
             pending_linux_actions = cleanup_pending_actions(pending_linux_actions)
             save_pending_actions(LINUX_PENDING_PATH, pending_linux_actions)
+            now = time.time()
             if len(parts) >= 3 and parts[1] == "show":
                 req_id = parts[2].strip()
                 item = pending_linux_actions.get(req_id)

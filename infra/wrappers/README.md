@@ -18,3 +18,8 @@ USE_SUDO=true
 ```
 
 Then allow these wrappers in sudoers instead of the raw binaries.
+
+Notes:
+- The `linux-agent-ansible-playbook` wrapper sets `ANSIBLE_LOCAL_TEMP` and `ANSIBLE_REMOTE_TMP`
+  to `/var/tmp/ansible` to avoid writes under `/root` when `ProtectHome=yes`.
+- It also sets `HOME=/var/tmp/ansible-home` to keep `~/.ansible` writable.

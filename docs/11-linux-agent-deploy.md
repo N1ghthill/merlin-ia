@@ -17,6 +17,7 @@ sudo chown -R linux-agent:linux-agent /var/log/linux-agent
 sudo rsync -a executor/ /opt/linux-agent/executor/
 sudo rsync -a infra/wrappers/ /opt/linux-agent/wrappers/
 sudo rsync -a infra/acl_policy.json /opt/linux-agent/acl_policy.json
+sudo rsync -a infra/playbooks/ /opt/linux-agent/playbooks/
 
 # permissions for wrappers
 sudo chown root:root /opt/linux-agent/wrappers/linux-agent-*
@@ -36,6 +37,9 @@ sudo cp infra/systemd/linux-agent.socket /etc/systemd/system/linux-agent.socket
 sudo systemctl daemon-reload
 sudo systemctl enable --now linux-agent.socket
 ```
+Notes:
+- The service unit runs the executor as a module (`python3 -m executor.executor`) to keep package imports working.
+- If you customized the unit earlier, ensure `WorkingDirectory=/opt/linux-agent` and `ExecStart=/usr/bin/python3 -m executor.executor`.
 
 ## 5) Log rotation
 ```bash
@@ -62,12 +66,28 @@ Environment=ACL_RELOAD_ON_EACH_REQUEST=false
 Environment=ALLOWED_WRITE_UIDS=
 Environment=ALLOWED_WRITE_GIDS=
 ```
+For write actions (staging only), add:
+```ini
+NoNewPrivileges=no
+ProtectSystem=off
+```
+If you prefer a tighter policy, keep `ProtectSystem=full` and add:
+```ini
+ReadWritePaths=/usr /etc /var
+```
+For Ansible playbooks, the wrapper sets:
+- temp dir under `/var/tmp/ansible`
+- `HOME=/var/tmp/ansible-home`
+So `ProtectHome=yes` can remain enabled.
 
 ## 7) Validate the socket
 ```bash
 sudo systemctl status linux-agent.socket
 ls -l /run/linux-agent/agent.sock
 ```
+Optional (recommended for `read.journalctl`):
+- `sudo usermod -aG systemd-journal linux-agent`
+- `sudo systemctl restart linux-agent.socket`
 
 ## 8) Merlin CLI integration
 Run the Merlin CLI:

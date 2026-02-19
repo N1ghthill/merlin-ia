@@ -13,6 +13,7 @@ echo "==> Installing executor and wrappers"
 sudo rsync -a executor/ /opt/linux-agent/executor/
 sudo rsync -a infra/wrappers/ /opt/linux-agent/wrappers/
 sudo rsync -a infra/acl_policy.json /opt/linux-agent/acl_policy.json
+sudo rsync -a infra/playbooks/ /opt/linux-agent/playbooks/
 
 sudo chown root:root /opt/linux-agent/wrappers/linux-agent-*
 sudo chmod 0755 /opt/linux-agent/wrappers/linux-agent-*

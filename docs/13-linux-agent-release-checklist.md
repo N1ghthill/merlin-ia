@@ -12,6 +12,8 @@ Use this checklist before and after deploying to a real host.
 - [ ] `WRAPPERS_DIR` and `PLAYBOOKS_DIR` correct.
 - [ ] Executor logs directory is writable by `linux-agent`.
 - [ ] Logrotate installed.
+- [ ] If write actions enabled: `NoNewPrivileges=no` and filesystem protections adjusted (`ProtectSystem=off` or `ReadWritePaths=/usr /etc /var`).
+- [ ] For Ansible: wrapper temp dir `/var/tmp/ansible` available (or equivalent).
 
 ## Deploy
 - [ ] Executor and wrappers copied to `/opt/linux-agent`.
@@ -19,6 +21,7 @@ Use this checklist before and after deploying to a real host.
 - [ ] Systemd unit + socket installed.
 - [ ] Socket permissions correct (`660`).
 - [ ] Service/socket enabled and running.
+- [ ] ExecStart uses module invocation (`python3 -m executor.executor`) with `WorkingDirectory=/opt/linux-agent`.
 
 ## Post-Deploy
 - [ ] `GET /whoami` succeeds.
@@ -28,4 +31,3 @@ Use this checklist before and after deploying to a real host.
 - [ ] Logs written to `/var/log/linux-agent/`.
 - [ ] Pending actions persist across CLI restart.
 - [ ] Smoke CLI script passes.
-

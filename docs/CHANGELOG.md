@@ -25,3 +25,12 @@ All notable changes to this project will be documented in this file.
 - Testes não executados neste ambiente (pytest ausente).
 - Deploy e socket activation não validados em host real.
 
+## [0.1.1] - 2026-02-19
+
+### Added
+- Linux Agent validation report (`docs/17-linux-agent-validation-report.md`).
+- Linux Agent state snapshot (`docs/linux-agent-state.json`).
+
+### Changed
+- Deploy instructions updated (playbooks copied, write actions and Ansible temp guidance).
+- Troubleshooting expanded with write/ansible/systemd notes.

@@ -1,0 +1,42 @@
+{
+  "date": "2026-02-19",
+  "status": "validated",
+  "environment": {
+    "os": "Debian GNU/Linux forky/sid",
+    "systemd": true
+  },
+  "executor": {
+    "user": "linux-agent",
+    "socket": "/run/linux-agent/agent.sock",
+    "exec_start": "/usr/bin/python3 -m executor.executor",
+    "working_directory": "/opt/linux-agent"
+  },
+  "write_policy": {
+    "allow_write_actions": true,
+    "allowed_write_uids": ["irving"],
+    "no_new_privileges": false,
+    "protect_system": "off",
+    "protect_home": "yes"
+  },
+  "ansible": {
+    "wrapper_temp": "/var/tmp/ansible",
+    "wrapper_home": "/var/tmp/ansible-home",
+    "playbook_validation": "pass"
+  },
+  "checks": {
+    "read_actions": "pass",
+    "write_actions": "pass",
+    "nginx": {
+      "installed": true,
+      "enabled": true,
+      "active": true,
+      "listening_80": true,
+      "config_test": "ok"
+    }
+  },
+  "notes": [
+    "debconf non-interactive warnings during apt installs (expected)",
+    "ufw trigger warning about iptables version during nginx install (non-blocking)",
+    "ansible localhost inventory warnings (expected)"
+  ]
+}

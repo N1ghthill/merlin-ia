@@ -265,12 +265,13 @@ Example client (requests-unixsocket):
 # merlin/tools/linux_tool.py
 # Requires: requests_unixsocket
 import requests_unixsocket
+from urllib.parse import quote_plus
 import uuid
 
 class LinuxTool:
     def __init__(self, socket_path="/run/linux-agent/agent.sock"):
         self.s = requests_unixsocket.Session()
-        self.base = f"http+unix://{requests_unixsocket.utils.quote_plus(socket_path)}"
+        self.base = f"http+unix://{quote_plus(socket_path)}"
 
     def whoami(self):
         r = self.s.get(f"{self.base}/whoami", timeout=10)
@@ -406,6 +407,7 @@ When we move to implementation, the likely tasks will include:
 ## Systemd Notes (Recommended)
 Use systemd to manage socket permissions and runtime directories. The unit should run as a dedicated `linux-agent` user and create `/run/linux-agent` with restricted permissions. Keep the socket readable only to the intended group.
 The executor supports socket activation via `LISTEN_FDS` if you choose to use a `.socket` unit.
+For write actions that rely on `sudo`, you must disable `NoNewPrivileges` and allow filesystem writes (see deploy guide).
 
 ## Systemd Unit (Example)
 Place the service unit at `/etc/systemd/system/linux-agent.service`.
@@ -418,7 +420,8 @@ After=network.target
 [Service]
 User=linux-agent
 Group=linux-agent
-ExecStart=/usr/bin/python3 /opt/linux-agent/executor/executor.py
+WorkingDirectory=/opt/linux-agent
+ExecStart=/usr/bin/python3 -m executor.executor
 Restart=on-failure
 RuntimeDirectory=linux-agent
 RuntimeDirectoryMode=0750

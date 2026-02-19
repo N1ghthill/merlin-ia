@@ -20,3 +20,5 @@
 - Testes não executados neste ambiente (pytest ausente).
 - Deploy e socket activation ainda não validados em host real.
 
+## Validation
+- Final validation report: `docs/17-linux-agent-validation-report.md`

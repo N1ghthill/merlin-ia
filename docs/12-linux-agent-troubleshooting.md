@@ -27,11 +27,53 @@ Common issues and quick fixes.
 - Ensure wrappers exist in `/opt/linux-agent/wrappers`.
 - Check `WRAPPERS_DIR` and `REQUIRE_WRAPPERS`.
 
+## Journalctl permission denied
+**Symptom:** `No journal files were opened due to insufficient permissions`
+**Fix:**
+- Add the executor user to the journal group:
+  - `sudo usermod -aG systemd-journal linux-agent`
+- Restart the socket/service:
+  - `sudo systemctl restart linux-agent.socket`
+
+## Executor is not a package
+**Symptom:** `ModuleNotFoundError: No module named 'executor.actions'; 'executor' is not a package`
+**Fix:**
+- Use module execution in systemd: `ExecStart=/usr/bin/python3 -m executor.executor`
+- Ensure `WorkingDirectory=/opt/linux-agent`
+- `sudo systemctl daemon-reload && sudo systemctl restart linux-agent.socket`
+
 ## Sudo requires password
 **Symptom:** `sudo: a password is required`
 **Fix:**
 - Ensure `/etc/sudoers.d/linux-agent` allows the wrapper scripts.
 - Validate file permissions: `chmod 0440 /etc/sudoers.d/linux-agent`.
+
+## Sudo blocked by NoNewPrivileges
+**Symptom:** `sudo: O sinalizador "sem novos privilégios" está definido`
+**Fix:**
+- Disable the restriction in a systemd drop-in when write actions are enabled:
+  - `NoNewPrivileges=no`
+  - `sudo systemctl daemon-reload && sudo systemctl restart linux-agent.socket`
+
+## Package install fails with read-only filesystem
+**Symptom:** `dpkg: ... Sistema de arquivos somente para leitura` (e.g., `/usr/bin/*.dpkg-new`)
+**Fix:**
+- Relax filesystem protection for write actions:
+  - Simplest: `ProtectSystem=off`
+  - More strict: `ProtectSystem=full` + `ReadWritePaths=/usr /etc /var`
+- Restart the socket after changes:
+  - `sudo systemctl daemon-reload && sudo systemctl restart linux-agent.socket`
+
+## Ansible temp dir is read-only
+**Symptom:** `Unable to create local directories '/root/.ansible/tmp'`
+**Fix:**
+- Prefer the wrapper default:
+  - `linux-agent-ansible-playbook` sets `ANSIBLE_LOCAL_TEMP=/var/tmp/ansible`
+  - `HOME=/var/tmp/ansible-home` so `~/.ansible` is writable
+  - Keep `ProtectHome=yes`
+- If you use a custom temp dir, ensure it is writable and allowed by systemd:
+  - `ReadWritePaths=/var/tmp`
+  - `sudo systemctl daemon-reload && sudo systemctl restart linux-agent.socket`
 
 ## Playbook not found
 **Symptom:** `playbook not found`
