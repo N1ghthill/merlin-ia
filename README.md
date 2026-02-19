@@ -55,6 +55,32 @@ Merlin IA is a local assistant that combines **smart retrieval (RAG)** + **natur
 
 ## 📦 Instalação | Installation
 
+### 0) Pré‑requisitos (Ollama)
+
+Merlin usa **Ollama** como backend local de LLM.
+
+Instale o Ollama (script oficial):
+```bash
+curl -fsSL https://ollama.com/install.sh | sh
+```
+
+Ative o serviço:
+```bash
+sudo systemctl enable --now ollama
+```
+
+Baixe o modelo padrão configurado no projeto:
+```bash
+ollama pull qwen2.5:7b
+```
+
+Teste rápido:
+```bash
+ollama run qwen2.5:7b "Responda apenas: ok"
+```
+
+Para trocar o modelo, ajuste `MODEL` em `merlin_cli.py`.
+
 ### 1) Clonar o projeto | Clone
 
 git clone https://github.com/N1ghthill/merlin-ia.git
@@ -85,6 +111,7 @@ Fazer uma pergunta
 1. Suba o executor (systemd socket):
    - `sudo systemctl enable --now linux-agent.socket`
 2. Abra o Merlin:
+   - `export MERLIN_ENABLE_EXECUTOR=1`
    - `python3 merlin_cli.py`
 3. Diagnóstico rápido:
    - `/linux-diagnose ssh 50`
@@ -100,12 +127,22 @@ Comandos úteis no CLI:
 - `/linux-exec CONFIRM EXECUTE <request_id>`
 - `/linux-auto on|off|status`
 - `/linux-history [N]`
+- `/linux-audit [N]`
+- `/linux-lockdown`
 - Pending actions persist in `data/linux_pending.json`
 - Linux actions can be indexed into RAG (env: `LINUX_RAG_INDEX=1`)
+- Audit log (write actions): `/var/log/merlin/audit.log` (env: `MERLIN_AUDIT_LOG`)
 - `/linux-pending show <request_id>`
 - Read-only lock (env: `LINUX_READ_ONLY=1`)
 - Smoke CLI: `tests/smoke_cli.sh`
 - `/linux-reload-acl`
+
+Atalhos de ergonomia (opcionais):
+```bash
+ln -s /home/irving/ruas/repos/merlin-ia/scripts/merlin-safe ~/bin/merlin-safe
+ln -s /home/irving/ruas/repos/merlin-ia/scripts/merlin-hot ~/bin/merlin-hot
+```
+`merlin-safe` mantém o executor OFF. `merlin-hot` liga o executor apenas nessa sessão.
 
 ## Status
 Implementation status: `docs/10-linux-agent-status.md`

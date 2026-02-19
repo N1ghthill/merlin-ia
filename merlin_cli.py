@@ -3,6 +3,8 @@ import os
 import json
 import glob
 import hashlib
+import getpass
+import signal
 import subprocess
 import time
 import uuid
@@ -68,6 +70,8 @@ SCROLLS_DIR = os.path.join(BASE_DIR, "scrolls")
 HISTORY_PATH = os.path.join(DATA_DIR, "history.jsonl")
 LINUX_ACTIONS_PATH = os.path.join(DATA_DIR, "linux_actions.jsonl")
 LINUX_PENDING_PATH = os.path.join(DATA_DIR, "linux_pending.json")
+AUDIT_LOG_DEFAULT_PATH = "/var/log/merlin/audit.log"
+AUDIT_LOG_FALLBACK_PATH = os.path.join(DATA_DIR, "merlin_audit.log")
 CHROMA_DIR = os.path.join(DATA_DIR, "chroma")
 RAG_INDEXER_PATH = os.path.join(BASE_DIR, "rag_indexer.py")
 
@@ -104,6 +108,160 @@ def append_jsonl(path: str, obj: dict) -> None:
         f.write(json.dumps(obj, ensure_ascii=False) + "\n")
 
 
+def _touch_path(path: str) -> None:
+    parent = os.path.dirname(path)
+    if parent:
+        os.makedirs(parent, exist_ok=True)
+    with open(path, "a", encoding="utf-8"):
+        pass
+
+
+def resolve_audit_log_path(preferred: str, fallback: str) -> Tuple[str | None, str | None]:
+    try:
+        _touch_path(preferred)
+        return preferred, None
+    except Exception as exc:
+        try:
+            _touch_path(fallback)
+            return fallback, f"Sem permissão para usar {preferred}; usando {fallback}."
+        except Exception as exc2:
+            return None, f"Auditoria indisponível ({exc2})."
+
+
+def get_confirm_user() -> str:
+    try:
+        res = subprocess.run(["whoami"], capture_output=True, text=True, check=True)
+        name = (res.stdout or "").strip()
+        if name:
+            return name
+    except Exception:
+        pass
+    try:
+        return getpass.getuser()
+    except Exception:
+        return "unknown"
+
+
+def log_audit_event(path: str, event: Dict[str, Any]) -> None:
+    payload = dict(event)
+    payload.setdefault("ts", now_iso())
+    append_jsonl(path, payload)
+
+
+def audit_execute_results(
+    audit_log_path: str,
+    request_id: str,
+    actions: List[Dict[str, Any]],
+    results: List[Dict[str, Any]],
+    confirmed_by: str,
+) -> None:
+    for action, res in zip(actions, results):
+        payload = {
+            "request_id": request_id,
+            "confirmed_by": confirmed_by,
+            "confirmed_uid": os.geteuid(),
+            "confirmed_gid": os.getegid(),
+            "action_type": action.get("type"),
+            "args": action.get("args", {}),
+            "cmd": res.get("cmd"),
+            "rc": res.get("rc"),
+            "ok": res.get("ok"),
+        }
+        if "error" in res:
+            payload["error"] = res.get("error")
+        log_audit_event(audit_log_path, payload)
+
+
+def _list_processes() -> List[Tuple[int, int, str]]:
+    try:
+        res = subprocess.run(
+            ["ps", "-eo", "pid,ppid,command"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except Exception:
+        return []
+    lines = res.stdout.splitlines()
+    items: List[Tuple[int, int, str]] = []
+    for line in lines[1:]:
+        parts = line.strip().split(None, 2)
+        if len(parts) < 3:
+            continue
+        try:
+            pid = int(parts[0])
+            ppid = int(parts[1])
+        except ValueError:
+            continue
+        cmd = parts[2]
+        items.append((pid, ppid, cmd))
+    return items
+
+
+def _find_executor_pids(proc_list: List[Tuple[int, int, str]]) -> List[int]:
+    pids: List[int] = []
+    try:
+        res = subprocess.run(
+            ["systemctl", "show", "-p", "MainPID", "--value", "linux-agent.service"],
+            capture_output=True,
+            text=True,
+        )
+        if res.returncode == 0:
+            pid = int(res.stdout.strip() or "0")
+            if pid > 0:
+                pids.append(pid)
+    except Exception:
+        pass
+    if not pids:
+        for pid, _, cmd in proc_list:
+            if "executor.executor" in cmd:
+                pids.append(pid)
+    return sorted(set(pids))
+
+
+def _collect_descendants(proc_list: List[Tuple[int, int, str]], roots: List[int]) -> List[int]:
+    children: List[int] = []
+    frontier = set(roots)
+    while frontier:
+        next_frontier = set()
+        for pid, ppid, _ in proc_list:
+            if ppid in frontier and pid not in children:
+                children.append(pid)
+                next_frontier.add(pid)
+        frontier = next_frontier
+    return children
+
+
+def kill_executor_children() -> Dict[str, Any]:
+    proc_list = _list_processes()
+    if not proc_list:
+        return {"attempted": 0, "killed": 0, "errors": ["process list unavailable"]}
+    exec_pids = _find_executor_pids(proc_list)
+    if not exec_pids:
+        return {"attempted": 0, "killed": 0, "errors": ["executor not running"]}
+    child_pids = _collect_descendants(proc_list, exec_pids)
+    killed = 0
+    errors: List[str] = []
+    for pid in child_pids:
+        try:
+            os.kill(pid, signal.SIGTERM)
+            killed += 1
+        except Exception as exc:
+            errors.append(f"{pid}: {exc}")
+    if child_pids:
+        time.sleep(0.5)
+        for pid in child_pids:
+            try:
+                os.kill(pid, 0)
+            except Exception:
+                continue
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except Exception as exc:
+                errors.append(f"{pid}: {exc}")
+    return {"attempted": len(child_pids), "killed": killed, "errors": errors}
+
+
 def _truncate_text(text: str, max_chars: int) -> str:
     if max_chars <= 0:
         return text
@@ -124,6 +282,43 @@ def _summarize_linux_result(res: Dict[str, Any], max_chars: int) -> Dict[str, An
     if isinstance(stderr, str) and stderr:
         summary["stderr"] = _truncate_text(stderr, max_chars)
     return summary
+
+
+_SERVICE_MISSING_PATTERNS = (
+    "could not be found",
+    "does not exist",
+    "unit not found",
+    "not-found",
+    "no such file or directory",
+    "nao encontrado",
+    "não encontrado",
+    "nao existe",
+    "não existe",
+)
+
+
+def _service_unit_missing(res: Dict[str, Any]) -> bool:
+    if not isinstance(res, dict):
+        return False
+    stdout = res.get("stdout") if isinstance(res.get("stdout"), str) else ""
+    stderr = res.get("stderr") if isinstance(res.get("stderr"), str) else ""
+    text = f"{stdout}\n{stderr}".lower()
+    return any(pat in text for pat in _SERVICE_MISSING_PATTERNS)
+
+
+def _should_skip_service_enable(linux_tool: Any, service: str, request_id: str) -> bool:
+    if not service:
+        return False
+    try:
+        res = linux_tool.run(
+            "read.service_status",
+            args={"service": service},
+            dry_run=False,
+            request_id=request_id,
+        )
+    except Exception:
+        return False
+    return _service_unit_missing(res)
 
 
 def impact_summary(actions: List[Dict[str, Any]], results: List[Dict[str, Any]], max_cmd_chars: int = 300) -> List[str]:
@@ -734,7 +929,7 @@ def index_scrolls_incremental(embedder_cache: Dict[str, Any], include_profile: b
 # CLI commands
 # ----------------------------
 
-def cmd_help():
+def cmd_help(linux_enabled: bool = True):
     print("\nComandos:")
     print("  /help            - mostra comandos")
     print("  /reset           - limpa o contexto em memória (não apaga o arquivo)")
@@ -747,16 +942,21 @@ def cmd_help():
     print("  /sources         - mostra as últimas fontes recuperadas")
     print("  /profile         - mostra o perfil canônico atual")
     print("  /set K V         - define campo do perfil (ex: /set nome Irving)")
-    print("  /linux TYPE JSON - chama linux_tool em dry-run (ex: /linux read.os_release {})")
-    print("  /linux-exec CONFIRM EXECUTE <request_id> - executa ação pendente")
-    print("  /linux-pending  - lista ações pendentes")
-    print("  /linux-pending show <request_id> - mostra detalhes da ação pendente")
-    print("  /linux-diagnose <service> [lines] - diagnóstico rápido (read-only)")
-    print("  /linux-install <service> [manager] - instala e habilita serviço (dry-run)")
-    print("  /linux-harden [playbook] - hardening via playbook (dry-run)")
-    print("  /linux-auto on|off|status - auto-detectar intents Linux no chat")
-    print("  /linux-history [N] - mostra últimas ações Linux")
-    print("  /linux-reload-acl - recarrega ACL do executor")
+    if linux_enabled:
+        print("  /linux TYPE JSON - chama linux_tool em dry-run (ex: /linux read.os_release {})")
+        print("  /linux-exec CONFIRM EXECUTE <request_id> - executa ação pendente")
+        print("  /linux-pending  - lista ações pendentes")
+        print("  /linux-pending show <request_id> - mostra detalhes da ação pendente")
+        print("  /linux-diagnose <service> [lines] - diagnóstico rápido (read-only)")
+        print("  /linux-install <service> [manager] - instala pacote e habilita serviço se existir (dry-run)")
+        print("  /linux-harden [playbook] - hardening via playbook (dry-run)")
+        print("  /linux-auto on|off|status - auto-detectar intents Linux no chat")
+        print("  /linux-history [N] - mostra últimas ações Linux")
+        print("  /linux-audit [N] - mostra últimas entradas de auditoria")
+        print("  /linux-reload-acl - recarrega ACL do executor")
+        print("  /linux-lockdown - bloqueia execuções, limpa pendências e encerra filhos do executor")
+    else:
+        print("  (executor Linux desativado; defina MERLIN_ENABLE_EXECUTOR=1 para habilitar /linux-*)")
     print("  exit             - sair\n")
 
 
@@ -767,14 +967,15 @@ def main():
     top_k = DEFAULT_TOP_K
     last_rag_sources: List[str] = []
     embedder_cache: Dict[str, Any] = {}
-    linux_tool = LinuxTool() if LinuxTool else None
+    linux_executor_enabled = os.getenv("MERLIN_ENABLE_EXECUTOR", "0") in {"1", "true", "yes", "on"}
+    linux_tool = LinuxTool() if (LinuxTool and linux_executor_enabled) else None
     pending_linux_actions: Dict[str, Dict[str, Any]] = cleanup_pending_actions(load_pending_actions(LINUX_PENDING_PATH))
     save_pending_actions(LINUX_PENDING_PATH, pending_linux_actions)
     try:
         pending_ttl_seconds = int(os.getenv("LINUX_PENDING_TTL", "300") or "300")
     except ValueError:
         pending_ttl_seconds = 300
-    linux_auto = os.getenv("LINUX_AUTO_INTENTS", "0") in {"1", "true", "yes", "on"}
+    linux_auto = linux_executor_enabled and os.getenv("LINUX_AUTO_INTENTS", "0") in {"1", "true", "yes", "on"}
     linux_log_actions = os.getenv("LINUX_LOG_ACTIONS", "1") in {"1", "true", "yes", "on"}
     try:
         linux_log_max_chars = int(os.getenv("LINUX_LOG_MAX_CHARS", "2000") or "2000")
@@ -790,6 +991,16 @@ def main():
         linux_impact_cmd_chars = int(os.getenv("LINUX_IMPACT_CMD_CHARS", "300") or "300")
     except ValueError:
         linux_impact_cmd_chars = 300
+    if linux_executor_enabled:
+        audit_log_path, audit_log_warning = resolve_audit_log_path(
+            os.getenv("MERLIN_AUDIT_LOG", AUDIT_LOG_DEFAULT_PATH),
+            AUDIT_LOG_FALLBACK_PATH,
+        )
+        if audit_log_warning:
+            print(f"⚠️  {audit_log_warning}")
+    else:
+        audit_log_path = None
+        audit_log_warning = None
 
     # perfil
     profile, raw_profile = load_profile()
@@ -820,6 +1031,8 @@ def main():
     print(f"🧠 Chroma: {CHROMA_DIR} | RAG={'ON' if rag_enabled else 'OFF'} | top_k={top_k}")
     if linux_read_only:
         print("🔒 Linux read-only mode: confirmações bloqueadas (LINUX_READ_ONLY=1)")
+    if not linux_executor_enabled:
+        print("ℹ️  Executor Linux desativado. Defina MERLIN_ENABLE_EXECUTOR=1 para habilitar /linux-*.")
 
     if not has_system:
         append_jsonl(HISTORY_PATH, {"ts": now_iso(), "role": "system", "content": SYSTEM_PROMPT})
@@ -848,7 +1061,7 @@ def main():
 
         # comandos
         if user.startswith("/help"):
-            cmd_help()
+            cmd_help(linux_executor_enabled)
             continue
 
         if user.startswith("/where"):
@@ -948,12 +1161,19 @@ def main():
                     print(f"- {item}")
             continue
 
+        if not linux_executor_enabled and (user.startswith("/linux") or user.upper().startswith("CONFIRM EXECUTE ")):
+            print("⚠️  Executor Linux desativado. Defina MERLIN_ENABLE_EXECUTOR=1 para habilitar /linux-*.")
+            continue
+
         if user.startswith("/linux-exec"):
             if linux_tool is None:
                 print("⚠️  LinuxTool não disponível (dependências ausentes).")
                 continue
             if linux_read_only:
                 print("🔒 Linux read-only mode ativo. Execução bloqueada.")
+                continue
+            if not audit_log_path:
+                print("⚠️  Auditoria obrigatória indisponível. Execução bloqueada.")
                 continue
             pending_linux_actions = cleanup_pending_actions(pending_linux_actions)
             parts = user.split()
@@ -976,16 +1196,35 @@ def main():
                 args = item.get("args") or {}
                 actions = [{"type": action_type, "args": args}]
             try:
+                confirmed_by = get_confirm_user()
                 results = []
                 for action in actions:
+                    action_type = action.get("type")
+                    args = action.get("args") or {}
+                    if action_type == "service.control" and args.get("operation") == "enable":
+                        svc = str(args.get("service", "")).strip()
+                        if _should_skip_service_enable(linux_tool, svc, request_id):
+                            results.append(
+                                {
+                                    "ok": True,
+                                    "rc": 0,
+                                    "stdout": f"Unidade systemd '{svc}' não encontrada; enable ignorado.",
+                                    "skipped": True,
+                                }
+                            )
+                            continue
                     res = linux_tool.run(
-                        action.get("type"),
-                        args=action.get("args") or {},
+                        action_type,
+                        args=args,
                         dry_run=False,
                         request_id=request_id,
                     )
                     results.append(res)
                 print(json.dumps(results, ensure_ascii=False, indent=2))
+                try:
+                    audit_execute_results(audit_log_path, request_id, actions, results, confirmed_by)
+                except Exception as e:
+                    print(f"⚠️  Falha ao registrar auditoria: {e}")
                 if linux_log_actions:
                     record_linux_results(
                         LINUX_ACTIONS_PATH,
@@ -1018,6 +1257,9 @@ def main():
             if linux_read_only:
                 print("🔒 Linux read-only mode ativo. Execução bloqueada.")
                 continue
+            if not audit_log_path:
+                print("⚠️  Auditoria obrigatória indisponível. Execução bloqueada.")
+                continue
             pending_linux_actions = cleanup_pending_actions(pending_linux_actions)
             parts = user.split()
             if len(parts) != 3:
@@ -1035,16 +1277,35 @@ def main():
                 continue
             actions = item.get("actions") or []
             try:
+                confirmed_by = get_confirm_user()
                 results = []
                 for action in actions:
+                    action_type = action.get("type")
+                    args = action.get("args") or {}
+                    if action_type == "service.control" and args.get("operation") == "enable":
+                        svc = str(args.get("service", "")).strip()
+                        if _should_skip_service_enable(linux_tool, svc, request_id):
+                            results.append(
+                                {
+                                    "ok": True,
+                                    "rc": 0,
+                                    "stdout": f"Unidade systemd '{svc}' não encontrada; enable ignorado.",
+                                    "skipped": True,
+                                }
+                            )
+                            continue
                     res = linux_tool.run(
-                        action.get("type"),
-                        args=action.get("args") or {},
+                        action_type,
+                        args=args,
                         dry_run=False,
                         request_id=request_id,
                     )
                     results.append(res)
                 print(json.dumps(results, ensure_ascii=False, indent=2))
+                try:
+                    audit_execute_results(audit_log_path, request_id, actions, results, confirmed_by)
+                except Exception as e:
+                    print(f"⚠️  Falha ao registrar auditoria: {e}")
                 if linux_log_actions:
                     record_linux_results(
                         LINUX_ACTIONS_PATH,
@@ -1131,6 +1392,46 @@ def main():
                 req = item.get("request_id", "")
                 actions = item.get("actions", [])
                 print(f"- {ts} | {mode} | {req} | ações={len(actions)}")
+            continue
+
+        if user.startswith("/linux-audit"):
+            parts = user.split()
+            n = 10
+            if len(parts) >= 2 and parts[1].isdigit():
+                n = max(1, min(200, int(parts[1])))
+            if not audit_log_path or not os.path.exists(audit_log_path):
+                print("Nenhum log de auditoria encontrado.")
+                continue
+            items = tail_linux_actions(audit_log_path, n=n)
+            if not items:
+                print("Nenhum log de auditoria encontrado.")
+                continue
+            for item in items:
+                ts = item.get("ts", "")
+                req = item.get("request_id", "")
+                by = item.get("confirmed_by", "")
+                cmd = item.get("cmd", "")
+                action_type = item.get("action_type", "")
+                print(f"- {ts} | {req} | {by} | {action_type} | {cmd}")
+            continue
+
+        if user.startswith("/linux-lockdown"):
+            pending_linux_actions = {}
+            save_pending_actions(LINUX_PENDING_PATH, pending_linux_actions)
+            linux_read_only = True
+            os.environ["LINUX_READ_ONLY"] = "1"
+            result = kill_executor_children()
+            attempted = result.get("attempted", 0)
+            killed = result.get("killed", 0)
+            errors = result.get("errors") or []
+            print("🔒 Lockdown ativado:")
+            print("- Ações pendentes revogadas")
+            print("- LINUX_READ_ONLY=1 aplicado nesta sessão")
+            print(f"- Processos filhos do executor: {killed}/{attempted} sinalizados")
+            if errors:
+                print("⚠️  Avisos ao matar processos:")
+                for err in errors:
+                    print(f"- {err}")
             continue
 
         if user.startswith("/linux-auto"):

@@ -6,8 +6,10 @@ cd "$ROOT_DIR"
 
 echo "==> Creating linux-agent user and directories"
 sudo useradd --system --no-create-home --shell /usr/sbin/nologin linux-agent 2>/dev/null || true
-sudo mkdir -p /opt/linux-agent /var/log/linux-agent
+sudo mkdir -p /opt/linux-agent /var/log/linux-agent /var/log/merlin
 sudo chown -R linux-agent:linux-agent /opt/linux-agent /var/log/linux-agent
+sudo chown root:linux-agent /var/log/merlin
+sudo chmod 2770 /var/log/merlin
 
 echo "==> Installing executor and wrappers"
 sudo rsync -a executor/ /opt/linux-agent/executor/

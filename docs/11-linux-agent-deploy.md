@@ -7,8 +7,11 @@ This guide describes a safe, minimal deployment for the executor + Merlin integr
 sudo useradd --system --no-create-home --shell /usr/sbin/nologin linux-agent
 sudo mkdir -p /opt/linux-agent
 sudo mkdir -p /var/log/linux-agent
+sudo mkdir -p /var/log/merlin
 sudo chown -R linux-agent:linux-agent /opt/linux-agent
 sudo chown -R linux-agent:linux-agent /var/log/linux-agent
+sudo chown root:linux-agent /var/log/merlin
+sudo chmod 2770 /var/log/merlin
 ```
 
 ## 2) Install executor and wrappers
@@ -84,6 +87,10 @@ So `ProtectHome=yes` can remain enabled.
 ```bash
 sudo systemctl status linux-agent.socket
 ls -l /run/linux-agent/agent.sock
+```
+If you want to run the CLI as a non-root user, add your user to the `linux-agent` group:
+```bash
+sudo usermod -aG linux-agent $USER
 ```
 Optional (recommended for `read.journalctl`):
 - `sudo usermod -aG systemd-journal linux-agent`

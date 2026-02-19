@@ -5,13 +5,18 @@ import uuid
 from typing import Any, Dict, Optional
 
 import requests_unixsocket
+from urllib.parse import quote_plus
 
 
 class LinuxTool:
     def __init__(self, socket_path: Optional[str] = None):
         sock = socket_path or os.getenv("LINUX_AGENT_SOCK", "/run/linux-agent/agent.sock")
         self.session = requests_unixsocket.Session()
-        self.base = f"http+unix://{requests_unixsocket.utils.quote_plus(sock)}"
+        try:
+            quoted = requests_unixsocket.utils.quote_plus(sock)
+        except Exception:
+            quoted = quote_plus(sock)
+        self.base = f"http+unix://{quoted}"
 
     def whoami(self) -> Dict[str, Any]:
         r = self.session.get(f"{self.base}/whoami", timeout=10)

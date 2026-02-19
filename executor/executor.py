@@ -216,7 +216,7 @@ async def handle_run(request: web.Request) -> web.Response:
         "rc": res.get("rc"),
     })
 
-    return web.json_response({"ok": True, **res})
+    return web.json_response({"ok": True, "cmd": " ".join(cmd), **res})
 
 
 async def handle_reload_acl(request: web.Request) -> web.Response:
