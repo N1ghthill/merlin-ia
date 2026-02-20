@@ -1,15 +1,20 @@
 # 🧙 Merlin IA
 
-**Assistente local com RAG para Linux**  
-*Chat com seus documentos, anotações e sistema - tudo local e privado*
+**Seu assistente Linux inteligente e 100% privado**
+_Automatize tarefas, consulte documentos e gerencie o sistema com IA, tudo offline._
 
-## ✨ O que é?
+## ✨ Por que usar o Merlin?
 
-Merlin IA é um assistente inteligente que roda **100% local** no seu computador. Ele:
-- 📚 **Lê seus documentos** (PDF, TXT, MD) e conversa sobre eles
-- 🐧 **Gerencia seu Linux** (diagnóstico, instalação, hardening)
-- 🖥️ **Interface nativa** (Electron) + CLI poderoso
-- 🔒 **Privacidade total** (nada sai da sua máquina)
+Cansado de depender da nuvem para usar IA com seus arquivos? Preocupado com a privacidade dos seus dados? O Merlin IA roda **completamente offline** no seu computador. Use linguagem natural para:
+
+- 📚 **Conversar com seus documentos:** Faça perguntas sobre PDFs, anotações em TXT/MD e obtenha respostas baseadas no conteúdo (RAG).
+- 🐧 **Automatizar seu Linux:** Execute diagnósticos, instale pacotes e aplique hardening de segurança com comandos diretos como `/linux-install nginx` ou `/linux-harden ssh`.
+- 🖥️ **Escolher sua interface:** Use o **CLI poderoso** para scripts ou a **interface gráfica nativa (Electron)** para interações mais visuais.
+- 🔒 **Garantir sua privacidade:** Nenhum dado sai da sua máquina. Tudo processado localmente com Ollama e ChromaDB.
+
+**✅ Perfeito para:** Devs que querem automatizar seu ambiente, times que lidam com dados sensíveis, ou qualquer pessoa que valorize privacidade e produtividade no Linux.
+
+---
 
 ## 🚀 Instalação Rápida (Ubuntu/Debian)
 
@@ -24,15 +29,11 @@ sudo dpkg -i merlin-ia_0.1.0_amd64.deb
 merlin-ia
 ```
 
-## 📦 Outros formatos
+📦 Outros formatos: Windows (`.exe`), macOS (`.dmg`), Linux (`.rpm`) - veja como gerar em [Build do Zero](./docs/build-do-zero.md).
 
-- Windows: `npm run dist:win` (gera `.exe`)
-- macOS: `npm run dist:mac` (gera `.dmg`)
-- Linux (RPM): `npm run dist:rpm`
+## 📊 Status do Projeto (Robusto e Testado)
 
-## 🧪 Status do Projeto
-
-| Componente | Status | Cobertura |
+| Componente | Status | Cobertura de Testes |
 | --- | --- | --- |
 | RAG Core | ✅ Estável | 93% |
 | Linux Agent | ✅ Robusto | 68% |
@@ -40,56 +41,48 @@ merlin-ia
 | Electron UI | ✅ Nova | - |
 | Total | **91 testes** | **Média 77%** |
 
-## 📚 Documentação Completa
+## 🧠 Como Funciona (Simples e Direto)
 
-- [Guia de Instalação](docs/01-instalacao.md)
-- [Como Usar](docs/02-como-usar.md)
-- [Comandos do Linux Agent](docs/18-merlin-cli-commands.md)
-- [API para Desenvolvedores](merlin_api.py)
-- [Build do Zero](instrucoes_8.md)
-- [Contribuindo](CONTRIBUTING.md)
+1. Adicione seus documentos na pasta `scrolls/`.
+2. O Merlin indexa o conteúdo, transformando em embeddings (via Ollama + ChromaDB).
+3. Faça uma pergunta na interface gráfica ou no CLI.
+4. O Merlin busca os trechos mais relevantes e gera uma resposta contextualizada para você.
 
-## 🧠 Como Funciona
+## 🐧 Linux Agent: Comandos Mágicos
 
-1. Você adiciona documentos em `scrolls/`
-2. Merlin indexa e transforma em embeddings (via Ollama + ChromaDB)
-3. Você pergunta algo na UI ou CLI
-4. Merlin busca trechos relevantes e gera resposta contextualizada
+Digite estes comandos diretamente no chat para controlar seu sistema:
 
-## 🐧 Linux Agent
+- `/linux-diagnose ssh 50` -> Diagnóstico detalhado do serviço SSH.
+- `/linux-install nginx` -> Instala o Nginx (com simulação dry-run primeiro).
+- `/linux-harden ssh` -> Aplica configurações de hardening no SSH automaticamente.
+- `/linux-lockdown` -> Ativa o modo read-only do sistema para segurança máxima.
 
-Comandos mágicos direto no chat:
-
-```bash
-/linux-diagnose ssh 50    # Diagnóstico do serviço SSH
-/linux-install nginx      # Instala Nginx (com dry-run)
-/linux-harden ssh         # Aplica hardening no SSH
-/linux-lockdown           # Modo read-only
-```
-
-## 🛠️ Desenvolvimento
+## 🛠️ Para Desenvolvedores (Contribua e Adapte)
 
 ```bash
 git clone https://github.com/N1ghthill/merlin-ia.git
 cd merlin-ia
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
-pip install -r requirements-dev.txt
+pip install -r requirements.txt requirements-dev.txt
 
 # Rodar testes
 pytest tests/ -v
 
-# Gerar .deb
+# Gerar pacote .deb
 cd electron && npm run dist:deb
 ```
 
+📚 Documentação completa: [Guia de Instalação](./docs/01-instalacao.md) | [Como Usar](./docs/02-como-usar.md) | [Comandos do Linux Agent](./docs/18-merlin-cli-commands.md) | [API](./docs/api.md) | [Build do Zero](./docs/build-do-zero.md)
+
 ## 🤝 Contribuindo
 
-Pull requests são bem-vindos. Leia [CONTRIBUTING.md](CONTRIBUTING.md) para começar.
+Adoramos contribuições. Seja corrigindo um bug, sugerindo uma feature ou melhorando a documentação. Dá uma olhada no [CONTRIBUTING.md](./CONTRIBUTING.md) para começar.
+
+Se você usou e gostou, deixe uma estrela ⭐ no repositório. Isso ajuda outras pessoas a encontrarem o projeto e nos motiva a continuar.
 
 ## 📜 Licença
 
-MIT - use, modifique, compartilhe.
+MIT - Use, modifique e compartilhe livremente.
 
 ## 🧙 Feito com magia por N1ghthill
