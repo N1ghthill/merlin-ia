@@ -1,5 +1,11 @@
 # 🧙 Merlin IA
 
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)
+![Tests](https://img.shields.io/github/actions/workflow/status/N1ghthill/merlin-ia/tests.yml?branch=main&label=tests)
+![Last Commit](https://img.shields.io/github/last-commit/N1ghthill/merlin-ia)
+![Issues](https://img.shields.io/github/issues/N1ghthill/merlin-ia)
+
 **Seu assistente Linux inteligente e 100% privado**
 _Automatize tarefas, consulte documentos e gerencie o sistema com IA, tudo offline._
 
