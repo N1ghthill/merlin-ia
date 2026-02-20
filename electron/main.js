@@ -1,10 +1,23 @@
 const { app, BrowserWindow, ipcMain, Tray, Menu } = require('electron');
+const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
 
 let mainWindow;
 let tray;
 let pythonProcess;
+
+function getProjectRoot() {
+  return app.isPackaged ? process.resourcesPath : path.join(__dirname, '..');
+}
+
+function resolvePythonExec(projectRoot) {
+  const venvPython = path.join(projectRoot, '.venv', 'bin', 'python3');
+  if (fs.existsSync(venvPython)) {
+    return venvPython;
+  }
+  return process.platform === 'win32' ? 'python' : 'python3';
+}
 
 async function callPythonAPI(endpoint, data = null) {
   const url = `http://localhost:3030/${endpoint}`;
@@ -18,12 +31,23 @@ async function callPythonAPI(endpoint, data = null) {
       body: data ? JSON.stringify(data) : undefined,
       signal: controller.signal,
     });
+    const rawBody = await response.text();
+    let body = {};
 
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
+    if (rawBody) {
+      try {
+        body = JSON.parse(rawBody);
+      } catch {
+        body = { rawBody };
+      }
     }
 
-    return await response.json();
+    if (!response.ok) {
+      const details = body.details || body.error || body.rawBody || `API error: ${response.status}`;
+      throw new Error(details);
+    }
+
+    return body;
   } catch (error) {
     console.error('Erro conectando ao Python:', error);
     throw error;
@@ -33,6 +57,8 @@ async function callPythonAPI(endpoint, data = null) {
 }
 
 function createWindow() {
+  const projectRoot = getProjectRoot();
+
   mainWindow = new BrowserWindow({
     width: 800,
     height: 600,
@@ -45,7 +71,7 @@ function createWindow() {
     show: false,
   });
 
-  mainWindow.loadFile(path.join(__dirname, '..', 'electron-app', 'index.html'));
+  mainWindow.loadFile(path.join(projectRoot, 'electron-app', 'index.html'));
 
   // Exibe somente quando tudo estiver pronto para evitar tela branca.
   mainWindow.once('ready-to-show', () => {
@@ -75,18 +101,26 @@ function createWindow() {
 
 function startPythonBackend() {
   // Backend Python iniciado em processo filho (API HTTP local).
-  const projectRoot = path.join(__dirname, '..');
-  const pythonExec = path.join(projectRoot, '.venv', 'bin', 'python3');
+  const projectRoot = getProjectRoot();
+  const pythonExec = resolvePythonExec(projectRoot);
   const apiScript = path.join(projectRoot, 'merlin_api.py');
+  if (!fs.existsSync(apiScript)) {
+    console.error(`🐍 API não encontrada em ${apiScript}`);
+    return;
+  }
 
-  pythonProcess = spawn(pythonExec, [apiScript, '--port', '3030']);
+  pythonProcess = spawn(pythonExec, [apiScript, '--port', '3030'], { cwd: projectRoot });
 
   pythonProcess.stdout.on('data', (data) => {
     const text = data.toString();
     console.log(`🐍 API: ${text}`);
-    if (text.includes('Running on') && mainWindow && !mainWindow.isDestroyed()) {
+    if ((text.includes('Running on') || text.includes('Merlin API rodando')) && mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('backend-ready');
     }
+  });
+
+  pythonProcess.on('error', (error) => {
+    console.error(`🐍 API falhou ao iniciar: ${error.message}`);
   });
 
   pythonProcess.stderr.on('data', (data) => {
@@ -125,7 +159,7 @@ ipcMain.handle('ask-merlin', async (_event, question) => {
     return { answer: result.answer };
   } catch (error) {
     return {
-      answer: `⚠️ Erro de conexão com o backend. Verifique se o Python está rodando.\n\nDetalhes: ${error.message}`,
+      answer: `⚠️ Erro no backend do Merlin.\n\nDetalhes: ${error.message}`,
     };
   }
 });

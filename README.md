@@ -26,10 +26,10 @@ Cansado de depender da nuvem para usar IA com seus arquivos? Preocupado com a pr
 
 ```bash
 # Baixe o .deb da última release
-wget https://github.com/N1ghthill/merlin-ia/releases/latest/download/merlin-ia_0.1.0_amd64.deb
+gh release download --repo N1ghthill/merlin-ia --pattern '*.deb'
 
 # Instale
-sudo dpkg -i merlin-ia_0.1.0_amd64.deb
+sudo dpkg -i merlin-ia_*_amd64.deb
 
 # Execute
 merlin-ia
