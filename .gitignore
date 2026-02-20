@@ -8,6 +8,8 @@ __pycache__/
 .ruff_cache/
 .venv/
 venv/
+env/
+ENV/
 merlin-venv/
 .env
 
@@ -15,6 +17,9 @@ merlin-venv/
 electron/node_modules/
 electron/dist/
 electron/out/
+electron-app/node_modules/
+electron-app/dist/
+electron-app/out/
 
 # Builds
 *.deb
@@ -22,6 +27,15 @@ electron/out/
 *.exe
 *.dmg
 *.AppImage
+dist/
+build/
+*.egg-info/
+
+# Test and coverage artifacts
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
 
 # IDE
 .vscode/
