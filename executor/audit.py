@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Optional
 
 
@@ -17,7 +17,6 @@ def ensure_log_dir(log_dir: str) -> str:
 
 def log_event(log_path: str, event: Dict[str, object]) -> None:
     payload = dict(event)
-    payload.setdefault("ts", datetime.utcnow().isoformat(timespec="seconds") + "Z")
+    payload.setdefault("ts", datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec="seconds") + "Z")
     with open(log_path, "a", encoding="utf-8") as f:
         f.write(json.dumps(payload, ensure_ascii=False) + "\n")
-

@@ -1,198 +1,97 @@
-<div align="center">
-
 # 🧙 Merlin IA
-**Assistente local com RAG (Retrieval-Augmented Generation)**  
-Chat inteligente com sua base de conhecimento: documentos, anotações e arquivos — com respostas contextualizadas.
 
-**Local AI assistant with RAG (Retrieval-Augmented Generation)**  
-Chat with your knowledge base: docs, notes and files — with grounded, contextual answers.
+**Assistente local com RAG para Linux**  
+*Chat com seus documentos, anotações e sistema - tudo local e privado*
 
-<br/>
+![Merlin UI](artifacts/merlin-deb-running-connected-bridge.png)
 
-<!-- Badges -->
-![Status](https://img.shields.io/badge/status-active-success)
-![Python](https://img.shields.io/badge/python-3.10%2B-blue)
-![License](https://img.shields.io/badge/license-MIT-informational)
+## ✨ O que é?
 
-</div>
+Merlin IA é um assistente inteligente que roda **100% local** no seu computador. Ele:
+- 📚 **Lê seus documentos** (PDF, TXT, MD) e conversa sobre eles
+- 🐧 **Gerencia seu Linux** (diagnóstico, instalação, hardening)
+- 🖥️ **Interface nativa** (Electron) + CLI poderoso
+- 🔒 **Privacidade total** (nada sai da sua máquina)
 
----
+## 🚀 Instalação Rápida (Ubuntu/Debian)
 
-## ✨ O que é | What is it?
-O **Merlin IA** é um assistente local que combina **busca inteligente (RAG)** + **respostas naturais**, permitindo conversar com seus próprios conteúdos com mais precisão.
-
-Merlin IA is a local assistant that combines **smart retrieval (RAG)** + **natural language answers**, allowing you to chat with your own files with better accuracy.
-
----
-
-## 🚀 Principais recursos | Key Features
-- 📚 **RAG / busca contextual** em documentos
-- 🔎 **Respostas com base no conteúdo** (menos “achismo”, mais contexto)
-- 🗂️ Indexação simples de arquivos e pastas
-- ⚡ Focado em produtividade: pesquisa, resumo e suporte técnico
-- 🧩 Arquitetura extensível (dá pra plugar novos loaders e fontes)
-
----
-
-## 🧠 Como funciona | How it works
-1. Você adiciona documentos (PDF/TXT/MD/etc)  
-2. O Merlin indexa e transforma em “memória” (embeddings)  
-3. Quando você pergunta algo, ele busca trechos relevantes  
-4. O modelo gera a resposta com base nos trechos encontrados
-
----
-
-## 🖥️ Demo (exemplo) | Demo (example)
-**Pergunta / Question**
-> “Resuma os pontos mais importantes do meu arquivo de planejamento.”
-
-**Resposta / Answer**
-> “Aqui está um resumo baseado no documento X… (com trechos e contexto)”
-
-> 💡 Dica: coloque um GIF aqui depois (fica MUITO forte no GitHub)
-
----
-
-## 📦 Instalação | Installation
-
-### 0) Pré‑requisitos (Ollama)
-
-Merlin usa **Ollama** como backend local de LLM.
-
-Instale o Ollama (script oficial):
 ```bash
-curl -fsSL https://ollama.com/install.sh | sh
+# Baixe o .deb da última release
+wget https://github.com/N1ghthill/merlin-ia/releases/latest/download/merlin-ia_0.1.0_amd64.deb
+
+# Instale
+sudo dpkg -i merlin-ia_0.1.0_amd64.deb
+
+# Execute
+merlin-ia
 ```
 
-Ative o serviço:
+## 📦 Outros formatos
+
+- Windows: `npm run dist:win` (gera `.exe`)
+- macOS: `npm run dist:mac` (gera `.dmg`)
+- Linux (RPM): `npm run dist:rpm`
+
+## 🧪 Status do Projeto
+
+| Componente | Status | Cobertura |
+| --- | --- | --- |
+| RAG Core | ✅ Estável | 93% |
+| Linux Agent | ✅ Robusto | 68% |
+| CLI | ✅ Completo | 71% |
+| Electron UI | ✅ Nova | - |
+| Total | **91 testes** | **Média 77%** |
+
+## 📚 Documentação Completa
+
+- [Guia de Instalação](docs/01-instalacao.md)
+- [Como Usar](docs/02-como-usar.md)
+- [Comandos do Linux Agent](docs/18-merlin-cli-commands.md)
+- [API para Desenvolvedores](merlin_api.py)
+- [Build do Zero](instrucoes_8.md)
+- [Contribuindo](CONTRIBUTING.md)
+
+## 🧠 Como Funciona
+
+1. Você adiciona documentos em `scrolls/`
+2. Merlin indexa e transforma em embeddings (via Ollama + ChromaDB)
+3. Você pergunta algo na UI ou CLI
+4. Merlin busca trechos relevantes e gera resposta contextualizada
+
+## 🐧 Linux Agent
+
+Comandos mágicos direto no chat:
+
 ```bash
-sudo systemctl enable --now ollama
+/linux-diagnose ssh 50    # Diagnóstico do serviço SSH
+/linux-install nginx      # Instala Nginx (com dry-run)
+/linux-harden ssh         # Aplica hardening no SSH
+/linux-lockdown           # Modo read-only
 ```
 
-Baixe o modelo padrão configurado no projeto:
+## 🛠️ Desenvolvimento
+
 ```bash
-ollama pull qwen2.5:7b
-```
-
-Teste rápido:
-```bash
-ollama run qwen2.5:7b "Responda apenas: ok"
-```
-
-Para trocar o modelo, ajuste `MODEL` em `merlin_cli.py`.
-
-### 1) Clonar o projeto | Clone
-
 git clone https://github.com/N1ghthill/merlin-ia.git
 cd merlin-ia
-
-### 2) Criar ambiente | Create venv
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
-
-### 3) Instalar dependências | Install deps
 pip install -r requirements.txt
+pip install -r requirements-dev.txt
 
-## ▶️ Como usar | Usage
+# Rodar testes
+pytest tests/ -v
 
-### Ajuste o comando conforme o seu entrypoint (CLI/API).
-
-Rodar o Merlin
-python merlin_cli.py
-
-Indexar documentos (exemplo)
-python merlin_cli.py
-  # depois use /index_scrolls dentro do CLI
-
-Fazer uma pergunta
-  # dentro do CLI: digite sua pergunta normalmente
-
-## Quickstart (Linux Agent)
-1. Suba o executor (systemd socket):
-   - `sudo systemctl enable --now linux-agent.socket`
-2. Abra o Merlin:
-   - `export MERLIN_ENABLE_EXECUTOR=1`
-   - `python3 merlin_cli.py`
-3. Diagnóstico rápido:
-   - `/linux-diagnose ssh 50`
-4. Instalação (dry-run + confirmação):
-   - `/linux-install nginx`
-   - `CONFIRM EXECUTE <request_id>`
-
-## Linux Agent (CLI)
-Comandos úteis no CLI:
-- `/linux-diagnose <service> [lines]`
-- `/linux-install <service> [manager]`
-- `/linux-harden [playbook]`
-- `/linux-exec CONFIRM EXECUTE <request_id>`
-- `/linux-auto on|off|status`
-- `/linux-history [N]`
-- `/linux-audit [N]`
-- `/linux-lockdown`
-- Pending actions persist in `data/linux_pending.json`
-- Linux actions can be indexed into RAG (env: `LINUX_RAG_INDEX=1`)
-- Audit log (write actions): `/var/log/merlin/audit.log` (env: `MERLIN_AUDIT_LOG`)
-- `/linux-pending show <request_id>`
-- Read-only lock (env: `LINUX_READ_ONLY=1`)
-- Smoke CLI: `tests/smoke_cli.sh`
-- `/linux-reload-acl`
-
-Atalhos de ergonomia (opcionais):
-```bash
-ln -s /home/irving/ruas/repos/merlin-ia/scripts/merlin-safe ~/bin/merlin-safe
-ln -s /home/irving/ruas/repos/merlin-ia/scripts/merlin-hot ~/bin/merlin-hot
+# Gerar .deb
+cd electron && npm run dist:deb
 ```
-`merlin-safe` mantém o executor OFF. `merlin-hot` liga o executor apenas nessa sessão.
 
-## Status
-Implementation status: `docs/10-linux-agent-status.md`
+## 🤝 Contribuindo
 
-## Ops
-- Logrotate template: `infra/logrotate/linux-agent`
-- Deploy guide: `docs/11-linux-agent-deploy.md`
-- Release checklist: `docs/13-linux-agent-release-checklist.md`
-- Makefile targets: `make test`, `make smoke`
-- Deploy script: `scripts/deploy_linux_agent.sh`
-- Post-deploy check: `scripts/post_deploy_check.sh`
-- Compatibility matrix: `docs/14-linux-agent-compatibility.md`
-- Requirements check: `scripts/check_requirements.sh`
-- Rollback script: `scripts/rollback_linux_agent.sh`
-- Final report: `docs/15-linux-agent-final-report.md`
-- Changelog: `docs/CHANGELOG.md`
-- Release notes: `docs/RELEASE.md`
-- Validation checklist: `docs/16-linux-agent-validation-checklist.md`
+Pull requests são bem-vindos. Leia [CONTRIBUTING.md](CONTRIBUTING.md) para começar.
 
-## ⚙️ Configuração | Configuration
+## 📜 Licença
 
-### Crie um .env na raiz:
+MIT - use, modifique, compartilhe.
 
-MODEL_NAME=seu-modelo-aqui
-EMBEDDINGS_MODEL=seu-embeddings-aqui
-DATA_PATH=./data
-
-## 🗺️ Roadmap
-
-Melhorar ingestão para PDF/Docx/HTML
-
-Interface Web simples (chat UI)
-
-Cache e performance de busca
-
-Citações por fonte (mostrar de onde veio cada trecho)
-
-Docker para rodar “1 comando e pronto”
-
-## 🤝 Contribuindo | Contributing
-
-Pull requests são bem-vindos!
-Se quiser sugerir melhorias, abre uma Issue com:
-
-### objetivo
-
-passos pra reproduzir
-
-prints/logs (se possível)
-
-## 📜 Licença | License
-
-MIT — use livremente e contribua se quiser.
+## 🧙 Feito com magia por N1ghthill

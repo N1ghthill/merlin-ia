@@ -1,13 +1,4 @@
-# runtime state
-data/*
-!data/.gitkeep
-logs/*.log
-
-# user scrolls (local)
-scrolls/perfil_usuario.md
-scrolls/*.txt
-
-# python
+# Python
 __pycache__/
 *.pyc
 *.pyo
@@ -15,13 +6,41 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
-
-# venv
 .venv/
 venv/
 merlin-venv/
+.env
 
-# chroma/sqlite
+# Electron
+electron/node_modules/
+electron/dist/
+electron/out/
+
+# Builds
+*.deb
+*.rpm
+*.exe
+*.dmg
+*.AppImage
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+data/*.log
+logs/*.log
+
+# Runtime state
+data/*
+!data/.gitkeep
+
+# User scrolls (local)
+scrolls/perfil_usuario.md
+scrolls/*.txt
+
+# Chroma/SQLite
 *.sqlite*
 
 # OS noise

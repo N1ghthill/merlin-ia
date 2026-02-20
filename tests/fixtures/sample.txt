@@ -1,0 +1,1 @@
+Merlin IA usa RAG para recuperar contexto relevante e responder com mais precisão.

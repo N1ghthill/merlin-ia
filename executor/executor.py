@@ -8,7 +8,7 @@ import grp
 import sys
 import socket
 import struct
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict
 
 from aiohttp import web
@@ -136,7 +136,7 @@ async def handle_run(request: web.Request) -> web.Response:
         return web.json_response({"ok": False, "error": "args must be an object"}, status=400)
 
     dry_run = bool(data.get("dry_run", True))
-    request_id = data.get("request_id") or f"req-{datetime.utcnow().isoformat()}Z"
+    request_id = data.get("request_id") or f"req-{datetime.now(timezone.utc).replace(tzinfo=None).isoformat()}Z"
 
     action = actions.get(action_type)
     if not action:

@@ -84,6 +84,9 @@ SCROLLS_MANIFEST_PATH = os.path.join(DATA_DIR, "scrolls_index.json")
 CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 150
 
+# Cache compartilhado para uso programático (API/integrações).
+_PROCESS_EMBEDDER_CACHE: Dict[str, Any] = {}
+
 
 # ----------------------------
 # Utils
@@ -695,6 +698,12 @@ def answer_from_profile(profile: Dict[str, str], fields: List[str]) -> str:
     return "\n\n".join(parts)
 
 
+def load_profile_content() -> str:
+    """Retorna o conteúdo bruto do perfil canônico."""
+    _, raw = load_profile()
+    return (raw or "").strip()
+
+
 # ----------------------------
 # RAG (Chroma + Embeddings)
 # ----------------------------
@@ -799,6 +808,75 @@ def retrieve_context(user_query: str, embedder_cache: Dict[str, Any], top_k: int
         include=["documents", "metadatas"],
     )
     return res
+
+
+def process_question(question: str, use_cache: bool = True) -> str:
+    """
+    Processa uma pergunta e retorna a resposta do Merlin.
+    Pensada para reuso via API/integrações, sem alterar o fluxo interativo.
+    """
+    if not isinstance(question, str) or not question.strip():
+        raise ValueError("Pergunta vazia")
+
+    ensure_dirs()
+    question = question.strip()
+    ts_user = now_iso()
+    embedder_cache = _PROCESS_EMBEDDER_CACHE if use_cache else {}
+
+    # Mantém comportamento determinístico para perguntas de perfil.
+    requested_fields = match_profile_question(question)
+    if requested_fields:
+        profile, _ = load_profile()
+        answer = answer_from_profile(profile, requested_fields)
+    else:
+        result = {"documents": [[]], "metadatas": [[]]}
+        rag_block = ""
+        try:
+            result = retrieve_context(question, embedder_cache, top_k=DEFAULT_TOP_K)
+            rag_block = build_rag_block(result)
+        except Exception:
+            rag_block = ""
+
+        profile, _ = load_profile()
+        profile_block = build_profile_block(profile)
+        messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+        messages.append({"role": "system", "content": profile_block})
+        if rag_block:
+            messages.append({"role": "system", "content": rag_block})
+        messages.append({"role": "user", "content": question})
+
+        try:
+            answer = stream_chat(messages)
+        except Exception as exc:
+            docs = (result.get("documents") or [[]])[0]
+            lines = [
+                "Não consegui consultar o modelo local agora, mas recuperei contexto útil:",
+            ]
+            if docs:
+                for doc in docs[:2]:
+                    if isinstance(doc, str) and doc.strip():
+                        lines.append(f"- {doc.strip()[:220]}")
+            else:
+                lines.append("- Nenhum trecho recuperado no momento.")
+            lines.append(f"Detalhe técnico: {exc}")
+            answer = "\n".join(lines)
+
+    ts_assistant = now_iso()
+
+    # Persistência best-effort, sem quebrar o fluxo principal em caso de erro.
+    if use_cache:
+        try:
+            append_jsonl(HISTORY_PATH, {"ts": ts_user, "role": "user", "content": question})
+            append_jsonl(HISTORY_PATH, {"ts": ts_assistant, "role": "assistant", "content": answer})
+        except Exception:
+            pass
+        try:
+            index_message_incremental(embedder_cache, "user", question, ts_user)
+            index_message_incremental(embedder_cache, "assistant", answer, ts_assistant)
+        except Exception:
+            pass
+
+    return answer
 
 
 def run_reindex() -> bool:
