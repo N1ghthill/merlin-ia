@@ -3,8 +3,6 @@
 **Assistente local com RAG para Linux**  
 *Chat com seus documentos, anotações e sistema - tudo local e privado*
 
-![Merlin UI](artifacts/merlin-deb-running-connected-bridge.png)
-
 ## ✨ O que é?
 
 Merlin IA é um assistente inteligente que roda **100% local** no seu computador. Ele:
