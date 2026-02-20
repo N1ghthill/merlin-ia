@@ -1,5 +1,7 @@
 # 🧙 Como Usar o Merlin IA
 
+Este guia apresenta o fluxo de uso no dia a dia, tanto pela interface gráfica quanto pela linha de comando.
+
 ## Interface Gráfica (Recomendada)
 
 1. Execute `merlin-ia` no terminal

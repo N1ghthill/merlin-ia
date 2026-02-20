@@ -1,5 +1,7 @@
 # 📦 Instalação do Merlin IA
 
+Este guia cobre a instalação do Merlin IA em Linux e também o caminho de build para Windows e macOS.
+
 ## Linux (Ubuntu/Debian)
 
 ### Via `.deb` (recomendado)
