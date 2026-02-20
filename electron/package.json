@@ -1,6 +1,6 @@
 {
   "name": "merlin-ia",
-  "version": "0.1.0",
+  "version": "0.2.3",
   "description": "Assistente local com RAG para Linux",
   "author": {
     "name": "N1ghthill",

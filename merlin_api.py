@@ -10,16 +10,40 @@ from pathlib import Path
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
-# Importa o core do Merlin (sem modificar nada)
-sys.path.insert(0, str(Path(__file__).parent))
-from merlin_cli import process_question, load_profile_content
-import rag_indexer
+# Importa o core do Merlin de forma resiliente: a API sobe mesmo se faltar
+# alguma dependência Python e retorna erro explícito para o frontend.
+APP_ROOT = Path(__file__).parent
+sys.path.insert(0, str(APP_ROOT))
+
+_core_import_error = None
+_rag_import_error = None
+
+try:
+    from merlin_cli import process_question, load_profile_content
+except Exception as exc:
+    process_question = None
+    _core_import_error = exc
+
+    def load_profile_content():
+        return ""
+
+try:
+    import rag_indexer
+except Exception as exc:
+    rag_indexer = None
+    _rag_import_error = exc
 
 app = Flask(__name__)
 CORS(app)
 
 # Cache simples pra não reprocessar tudo a cada pergunta
 _context_cache = {}
+
+
+def _exc_message(exc):
+    if not exc:
+        return None
+    return f"{exc.__class__.__name__}: {exc}"
 
 
 @app.route("/ask", methods=["POST"])
@@ -30,6 +54,16 @@ def ask():
 
     if not question:
         return jsonify({"error": "Pergunta vazia"}), 400
+    if process_question is None:
+        return (
+            jsonify(
+                {
+                    "error": "Core do Merlin indisponível no pacote instalado.",
+                    "details": _exc_message(_core_import_error),
+                }
+            ),
+            503,
+        )
 
     try:
         answer = process_question(question)
@@ -45,7 +79,7 @@ def ask():
 def list_documents():
     """Lista documentos indexados."""
     try:
-        scrolls_dir = Path("scrolls")
+        scrolls_dir = APP_ROOT / "scrolls"
         documents = []
         if scrolls_dir.exists():
             for file_path in sorted(scrolls_dir.rglob("*")):
@@ -69,6 +103,16 @@ def list_documents():
 @app.route("/index", methods=["POST"])
 def force_index():
     """Força reindexação dos documentos."""
+    if rag_indexer is None:
+        return (
+            jsonify(
+                {
+                    "error": "Reindex indisponível (módulo rag_indexer não carregado).",
+                    "details": _exc_message(_rag_import_error),
+                }
+            ),
+            503,
+        )
     try:
         def run_index():
             rag_indexer.main()
@@ -83,7 +127,16 @@ def force_index():
 @app.route("/health", methods=["GET"])
 def health():
     """Endpoint para verificar se a API está viva."""
-    return jsonify({"status": "alive", "rag_loaded": True, "profile_loaded": bool(load_profile_content())})
+    return jsonify(
+        {
+            "status": "alive",
+            "core_ready": process_question is not None,
+            "rag_ready": rag_indexer is not None,
+            "profile_loaded": bool(load_profile_content()),
+            "core_error": _exc_message(_core_import_error),
+            "rag_error": _exc_message(_rag_import_error),
+        }
+    )
 
 
 def main():
