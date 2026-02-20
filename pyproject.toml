@@ -1,0 +1,65 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "merlin-ia"
+version = "0.1.0"
+description = "Assistente local-first com RAG usando Ollama e ChromaDB."
+readme = "README.md"
+requires-python = ">=3.8"
+license = { file = "LICENSE" }
+authors = [
+  { name = "N1ghthill" }
+]
+keywords = [
+  "python",
+  "chatbot",
+  "rag",
+  "local-first",
+  "sentence-transformers",
+  "llm",
+  "chromadb",
+  "ollama",
+  "linux-automation",
+  "privacy-tools",
+  "offline-ai",
+  "developer-tools",
+  "electron-app",
+  "security",
+  "cli"
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Information Technology",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Topic :: Software Development :: Build Tools",
+  "Topic :: System :: Systems Administration",
+  "Topic :: Utilities"
+]
+dynamic = ["dependencies"]
+
+[project.urls]
+Homepage = "https://github.com/N1ghthill/merlin-ia"
+Repository = "https://github.com/N1ghthill/merlin-ia"
+Documentation = "https://github.com/N1ghthill/merlin-ia/tree/main/docs"
+Issues = "https://github.com/N1ghthill/merlin-ia/issues"
+
+[project.scripts]
+merlin-ia = "merlin_cli:main"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["merlin*"]
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
