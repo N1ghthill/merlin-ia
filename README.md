@@ -11,6 +11,8 @@ _Automatize tarefas, consulte documentos e gerencie o sistema com IA, tudo offli
 
 Do MVP ao scale: arquitetura local-first que começa como ferramenta individual e evolui para operação técnica com privacidade e automação.
 
+Contexto de pagamentos: este projeto não processa cobrança diretamente, mas complementa produtos que operam billing/payments com automações e eficiência operacional.
+
 ## Case Summary
 - Problema: dependência de nuvem para automação e consulta inteligente de documentos internos.
 - Solução: assistente offline com RAG + automações Linux, CLI e interface desktop.
