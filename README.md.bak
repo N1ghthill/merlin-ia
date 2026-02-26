@@ -9,24 +9,6 @@
 **Seu assistente Linux inteligente e 100% privado**
 _Automatize tarefas, consulte documentos e gerencie o sistema com IA, tudo offline._
 
-Do MVP ao scale: arquitetura local-first que começa como ferramenta individual e evolui para operação técnica com privacidade e automação.
-
-## Case Summary
-- Problema: dependência de nuvem para automação e consulta inteligente de documentos internos.
-- Solução: assistente offline com RAG + automações Linux, CLI e interface desktop.
-- Impacto esperado: ganho de produtividade sem abrir mão de privacidade.
-
-## Impacto (preencher com métricas reais)
-- Tempo economizado por rotina automatizada: `TODO`.
-- Redução de incidentes operacionais recorrentes: `TODO`.
-- Adoção de comandos Linux Agent por usuário: `TODO`.
-
-## Skills / Keywords (SEO)
-`automation`, `ML`, `open-source`, `API`, `Node.js`, `TypeScript`, `Python`, `RAG`, `offline-ai`, `linux-automation`
-
-## Disponibilidade
-Disponível para projetos de automação inteligente, agentes locais e produtos com requisitos fortes de privacidade.
-
 ## ✨ Por que usar o Merlin?
 
 Cansado de depender da nuvem para usar IA com seus arquivos? Preocupado com a privacidade dos seus dados? O Merlin IA roda **completamente offline** no seu computador. Use linguagem natural para:
