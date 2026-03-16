@@ -21,13 +21,13 @@ pip install -r requirements.txt -r requirements-api.txt
 2. Inicie a API local:
 
 ```bash
-python merlin_api.py
+python merlin_api.py --port 3030
 ```
 
 3. Teste um endpoint de saúde (exemplo):
 
 ```bash
-curl -s http://127.0.0.1:8000/health
+curl -s http://127.0.0.1:3030/health
 ```
 
 ## Próximos passos

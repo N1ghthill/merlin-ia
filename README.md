@@ -6,43 +6,73 @@
 ![Last Commit](https://img.shields.io/github/last-commit/N1ghthill/merlin-ia)
 ![Issues](https://img.shields.io/github/issues/N1ghthill/merlin-ia)
 
-**Seu assistente Linux inteligente e 100% privado**
-_Automatize tarefas, consulte documentos e gerencie o sistema com IA, tudo offline._
+![Preview da interface do Merlin IA](docs/images/merlin-ui-preview.svg)
 
-Do MVP ao scale: arquitetura local-first que começa como ferramenta individual e evolui para operação técnica com privacidade e automação.
+**Seu assistente Linux inteligente e 100% privado.**
 
-Contexto de pagamentos: este projeto não processa cobrança diretamente, mas complementa produtos que operam billing/payments com automações e eficiência operacional.
+O Merlin IA é um assistente local-first para Linux que combina RAG em documentos, automação de sistema e interface desktop/CLI sem enviar dados para serviços externos.
+
+## Visão Rápida
+
+- IA local com `Ollama` + `ChromaDB`.
+- Consulta a `PDF`, `TXT` e `Markdown` via RAG.
+- Automação Linux com diagnóstico, instalação, hardening e lockdown.
+- Uso por `CLI`, app desktop `Electron` e API HTTP local.
+- Distribuição real com instaladores `.deb`, `.rpm`, `.dmg`, `.exe` e `AppImage`.
 
 ## Case Summary
-- Problema: dependência de nuvem para automação e consulta inteligente de documentos internos.
-- Solução: assistente offline com RAG + automações Linux, CLI e interface desktop.
-- Impacto esperado: ganho de produtividade sem abrir mão de privacidade.
 
-## Impacto (preencher com métricas reais)
-- Tempo economizado por rotina automatizada: `TODO`.
-- Redução de incidentes operacionais recorrentes: `TODO`.
-- Adoção de comandos Linux Agent por usuário: `TODO`.
+- Problema: consultar documentação privada e automatizar rotinas operacionais sem depender de nuvem.
+- Solução: um único core Python com RAG, Linux Agent e múltiplas superfícies de uso.
+- Relevância técnica: demonstra backend local, integração com sistema operacional, IA aplicada, packaging e documentação de produto.
 
-## Skills / Keywords (SEO)
-`automation`, `ML`, `open-source`, `API`, `Node.js`, `TypeScript`, `Python`, `RAG`, `offline-ai`, `linux-automation`
+## Casos de Uso Reais
 
-## Disponibilidade
-Disponível para projetos de automação inteligente, agentes locais e produtos com requisitos fortes de privacidade.
+- Base de conhecimento privada para manuais, runbooks e documentação interna.
+- Diagnóstico assistido e troubleshooting de serviços Linux.
+- Automação local de setup, instalação de pacotes e hardening.
+- Assistente técnico para times ou ambientes com requisitos fortes de privacidade.
 
-## ✨ Por que usar o Merlin?
+## Arquitetura
 
-Cansado de depender da nuvem para usar IA com seus arquivos? Preocupado com a privacidade dos seus dados? O Merlin IA roda **completamente offline** no seu computador. Use linguagem natural para:
+```mermaid
+flowchart TD
+    U[Usuario] --> CLI[CLI]
+    U --> UI[Desktop UI Electron]
+    UI --> API[API HTTP local]
+    CLI --> CORE[Merlin Core Python]
+    API --> CORE
+    CORE --> RAG[RAG pipeline]
+    CORE --> AGENT[Linux Agent]
+    RAG --> DOCS[PDF / TXT / MD]
+    RAG --> OLLAMA[Ollama local]
+    RAG --> CHROMA[ChromaDB]
+    AGENT --> OS[Sistema Linux]
+```
 
-- 📚 **Conversar com seus documentos:** Faça perguntas sobre PDFs, anotações em TXT/MD e obtenha respostas baseadas no conteúdo (RAG).
-- 🐧 **Automatizar seu Linux:** Execute diagnósticos, instale pacotes e aplique hardening de segurança com comandos diretos como `/linux-install nginx` ou `/linux-harden ssh`.
-- 🖥️ **Escolher sua interface:** Use o **CLI poderoso** para scripts ou a **interface gráfica nativa (Electron)** para interações mais visuais.
-- 🔒 **Garantir sua privacidade:** Nenhum dado sai da sua máquina. Tudo processado localmente com Ollama e ChromaDB.
+## Stack / Componentes
 
-**✅ Perfeito para:** Devs que querem automatizar seu ambiente, times que lidam com dados sensíveis, ou qualquer pessoa que valorize privacidade e produtividade no Linux.
+| Camada | Tecnologias / responsabilidade |
+| --- | --- |
+| Core | `Python 3.8+`, orquestração do assistente, CLI e regras de execução |
+| API local | `Flask` + `Flask-CORS` para integrar UI desktop e automações locais |
+| IA / Conhecimento | `Ollama`, `ChromaDB`, embeddings e pipeline RAG |
+| Desktop | `Electron` com UI simples e focada em chat operacional |
+| Automação | Linux Agent, dry-run, auditoria e ações de hardening |
+| Packaging | `electron-builder` para `.deb`, `.rpm`, `.dmg`, `.exe` e `AppImage` |
+| Qualidade | `91` testes versionados + documentação técnica de instalação, API e build |
 
----
+## Status do Projeto
 
-## 🚀 Instalação Rápida (Ubuntu/Debian)
+| Área | Estado atual | Evidência |
+| --- | --- | --- |
+| RAG em documentos locais | ✅ Implementado | indexação incremental e recuperação contextual |
+| Linux Agent | ✅ Implementado | diagnose, install, harden e lockdown |
+| Interfaces | ✅ CLI + Electron + API local | mesmo core Python exposto em múltiplas entradas |
+| Packaging | ✅ Disponível | build para Linux, Windows e macOS |
+| Testes | ✅ 91 testes | suíte `unit` e `integration` no repositório |
+
+## Instalação Rápida (Ubuntu/Debian)
 
 ```bash
 # Baixe o .deb da última release
@@ -55,60 +85,66 @@ sudo dpkg -i merlin-ia_*_amd64.deb
 merlin-ia
 ```
 
-📦 Outros formatos: Windows (`.exe`), macOS (`.dmg`), Linux (`.rpm`) - veja como gerar em [Build do Zero](./docs/build-do-zero.md).
+Outros formatos: Windows (`.exe`), macOS (`.dmg`), Linux (`.rpm` e `AppImage`) em [Build do Zero](./docs/build-do-zero.md).
 
-## 📊 Status do Projeto (Robusto e Testado)
-
-| Componente | Status | Cobertura de Testes |
-| --- | --- | --- |
-| RAG Core | ✅ Estável | 93% |
-| Linux Agent | ✅ Robusto | 68% |
-| CLI | ✅ Completo | 71% |
-| Electron UI | ✅ Nova | - |
-| Total | **91 testes** | **Média 77%** |
-
-## 🧠 Como Funciona (Simples e Direto)
+## Como Funciona
 
 1. Adicione seus documentos na pasta `scrolls/`.
-2. O Merlin indexa o conteúdo, transformando em embeddings (via Ollama + ChromaDB).
-3. Faça uma pergunta na interface gráfica ou no CLI.
-4. O Merlin busca os trechos mais relevantes e gera uma resposta contextualizada para você.
+2. O Merlin indexa o conteúdo e gera embeddings localmente.
+3. A pergunta entra pelo CLI ou pela UI desktop.
+4. O RAG recupera os trechos relevantes e o Merlin responde com contexto.
+5. Se necessário, o Linux Agent executa ações operacionais no sistema.
 
-## 🐧 Linux Agent: Comandos Mágicos
+## Comandos do Linux Agent
 
-Digite estes comandos diretamente no chat para controlar seu sistema:
+Digite estes comandos diretamente no chat:
 
-- `/linux-diagnose ssh 50` -> Diagnóstico detalhado do serviço SSH.
-- `/linux-install nginx` -> Instala o Nginx (com simulação dry-run primeiro).
-- `/linux-harden ssh` -> Aplica configurações de hardening no SSH automaticamente.
-- `/linux-lockdown` -> Ativa o modo read-only do sistema para segurança máxima.
+- `/linux-diagnose ssh 50` para diagnóstico detalhado do serviço SSH.
+- `/linux-install nginx` para instalação de pacote com fluxo seguro.
+- `/linux-harden ssh` para aplicar configurações de hardening no SSH.
+- `/linux-lockdown` para ativar modo de proteção com superfície reduzida.
 
-## 🛠️ Para Desenvolvedores (Contribua e Adapte)
+## Avaliação Técnica Rápida
+
+Para um recrutador ou engenheiro técnico, estes pontos dão a leitura mais rápida do projeto:
+
+- [Case do projeto](./docs/case.md)
+- [Guia de instalação](./docs/01-instalacao.md)
+- [Como usar](./docs/02-como-usar.md)
+- [Comandos do Linux Agent](./docs/18-merlin-cli-commands.md)
+- [API local](./docs/api.md)
+- [Build e empacotamento](./docs/build-do-zero.md)
+- [Suíte de testes](./tests)
+
+## Para Desenvolvedores
 
 ```bash
 git clone https://github.com/N1ghthill/merlin-ia.git
 cd merlin-ia
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt requirements-dev.txt
+pip install -r requirements.txt -r requirements-dev.txt
 
 # Rodar testes
 pytest tests/ -v
 
+# Rodar UI desktop
+cd electron
+npm install
+npm start
+
 # Gerar pacote .deb
-cd electron && npm run dist:deb
+npm run dist:deb
 ```
 
-📚 Documentação completa: [Guia de Instalação](./docs/01-instalacao.md) | [Como Usar](./docs/02-como-usar.md) | [Comandos do Linux Agent](./docs/18-merlin-cli-commands.md) | [API](./docs/api.md) | [Build do Zero](./docs/build-do-zero.md)
+## Contribuindo
 
-## 🤝 Contribuindo
+Contribuições em código, documentação e validação de ambientes são bem-vindas. O fluxo inicial está em [CONTRIBUTING.md](./CONTRIBUTING.md).
 
-Adoramos contribuições. Seja corrigindo um bug, sugerindo uma feature ou melhorando a documentação. Dá uma olhada no [CONTRIBUTING.md](./CONTRIBUTING.md) para começar.
+## Licença
 
-Se você usou e gostou, deixe uma estrela ⭐ no repositório. Isso ajuda outras pessoas a encontrarem o projeto e nos motiva a continuar.
+MIT - use, modifique e compartilhe livremente.
 
-## 📜 Licença
+## Contato
 
-MIT - Use, modifique e compartilhe livremente.
-
-## 🧙 Feito com magia por N1ghthill
+Para oportunidades ligadas a automação inteligente, agentes locais e produtos com privacidade forte: `irving@ruas.dev.br`.
