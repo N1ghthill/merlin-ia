@@ -14,7 +14,7 @@ fi
 export LINUX_READ_ONLY=1
 export LINUX_AUTO_INTENTS=0
 
-python3 merlin_cli.py <<'EOF'
+python3 -m merlin_cli <<'EOF'
 /linux read.os_release {}
 /linux-diagnose ssh 50
 /linux-pending

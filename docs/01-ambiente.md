@@ -1,42 +1,38 @@
 # Ambiente de Referência
 
-Este documento registra um perfil de ambiente usado durante validações do Merlin IA e traz um checklist para reproduzir a configuração.
+Este documento registra um perfil simples de ambiente para validar o Merlin IA sem depender de componentes extras fora do stack Python e do Ollama.
 
-## Perfil de hardware observado
+## Base recomendada
 
-### CPU
+- Linux
+- Python `3.10+`
+- `python3-pip`
+- `python3-venv`
+- Ollama disponível no host
 
-- Cores físicos: 14
-- Threads lógicos: 28
-- Ollama threads: 14
-- Batch size: 256
-- Context: 4096
-- GPU: AMD RX 550 (sem ROCm)
-- Modo: CPU-only otimizado
+## Checklist rápido
 
-## Passo a passo para validar o ambiente
-
-1. Verifique versão do Python:
+1. Verifique o Python:
 
 ```bash
 python3 --version
 ```
 
-2. Verifique disponibilidade do Ollama:
+2. Verifique o Ollama:
 
 ```bash
 ollama --version
 ```
 
-3. Verifique Node.js e npm para a interface Electron:
+3. Ative o ambiente e rode a suíte:
 
 ```bash
-node --version
-npm --version
+source .venv/bin/activate
+pytest tests/ -q
 ```
 
-4. Execute um teste básico para confirmar o setup:
+4. Valide a compilação dos módulos:
 
 ```bash
-pytest tests/ -q
+python3 -m compileall merlin_cli.py merlin_api.py rag_indexer.py executor merlin
 ```

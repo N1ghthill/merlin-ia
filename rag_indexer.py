@@ -2,21 +2,39 @@ import os
 import json
 import glob
 import hashlib
+from types import SimpleNamespace
 from datetime import datetime
 from typing import List, Dict, Tuple
 
-import chromadb
-from chromadb.config import Settings
-from sentence_transformers import SentenceTransformer
+try:
+    import chromadb
+    from chromadb.config import Settings
+    _CHROMA_IMPORT_ERROR = None
+except Exception as exc:
+    chromadb = SimpleNamespace(PersistentClient=None)
+
+    def Settings(**kwargs):
+        return kwargs
+
+    _CHROMA_IMPORT_ERROR = exc
+
+try:
+    from sentence_transformers import SentenceTransformer
+    _EMBED_IMPORT_ERROR = None
+except Exception as exc:
+    SentenceTransformer = None
+    _EMBED_IMPORT_ERROR = exc
+
+from merlin.paths import PROJECT_ROOT, chroma_dir, data_dir, history_path, scrolls_dir
 
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(BASE_DIR, "data")
-SCROLLS_DIR = os.path.join(BASE_DIR, "scrolls")
-HISTORY_PATH = os.path.join(DATA_DIR, "history.jsonl")
-CHROMA_DIR = os.path.join(DATA_DIR, "chroma")
+BASE_DIR = str(PROJECT_ROOT)
+DATA_DIR = str(data_dir())
+SCROLLS_DIR = str(scrolls_dir())
+HISTORY_PATH = str(history_path())
+CHROMA_DIR = str(chroma_dir())
 
-EMBED_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
+EMBED_MODEL_NAME = os.getenv("EMBEDDINGS_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
 
 # chunking simples e robusto para MVP
 CHUNK_SIZE = 1000       # caracteres
@@ -33,6 +51,7 @@ def sha1(text: str) -> str:
 
 def ensure_dirs():
     os.makedirs(DATA_DIR, exist_ok=True)
+    os.makedirs(os.path.dirname(HISTORY_PATH), exist_ok=True)
     os.makedirs(SCROLLS_DIR, exist_ok=True)
     os.makedirs(CHROMA_DIR, exist_ok=True)
 
@@ -98,12 +117,33 @@ def read_scroll_files(scrolls_dir: str) -> List[Tuple[str, str]]:
     return out
 
 
+def relative_scroll_path(path: str) -> str:
+    rel = os.path.relpath(path, SCROLLS_DIR)
+    return os.path.join("scrolls", rel).replace("\\", "/")
+
+
 def get_collection():
+    if not callable(getattr(chromadb, "PersistentClient", None)):
+        raise RuntimeError(f"ChromaDB indisponível: {_CHROMA_IMPORT_ERROR}")
     client = chromadb.PersistentClient(
         path=CHROMA_DIR,
         settings=Settings(anonymized_telemetry=False),
     )
     return client.get_or_create_collection(name="merlin_memory")
+
+
+def reset_collection(col) -> None:
+    try:
+        payload = col.get()
+    except Exception:
+        payload = {}
+    ids = list(payload.get("ids") or [])
+    if not ids:
+        return
+    try:
+        col.delete(ids=ids)
+    except Exception:
+        pass
 
 
 def main():
@@ -112,8 +152,11 @@ def main():
     print(f"📦 Embedding model: {EMBED_MODEL_NAME}")
     print(f"🗂️  Chroma dir: {CHROMA_DIR}")
 
+    if SentenceTransformer is None:
+        raise RuntimeError(f"SentenceTransformer indisponível: {_EMBED_IMPORT_ERROR}")
     embedder = SentenceTransformer(EMBED_MODEL_NAME)
     col = get_collection()
+    reset_collection(col)
 
     # 1) Indexar histórico
     history = read_history_messages(HISTORY_PATH)
@@ -127,8 +170,6 @@ def main():
         # chunk por mensagem (para MVP)
         for j, chunk in enumerate(chunk_text(content)):
             doc_id = f"hist:{i}:{j}:{sha1(role + '|' + chunk)}"
-            # upsert "idempotente" via get+skip simples
-            # (Chroma não tem upsert universal; add falha se id existir)
             try:
                 emb = embedder.encode([chunk], normalize_embeddings=True).tolist()
                 col.add(
@@ -145,7 +186,6 @@ def main():
                 )
                 hist_chunks += 1
             except Exception:
-                # id já existe ou outro erro: no MVP, só ignora
                 pass
         hist_docs += 1
 
@@ -155,7 +195,7 @@ def main():
     scr_chunks = 0
 
     for path, text in scrolls:
-        rel = os.path.relpath(path, BASE_DIR)
+        rel = relative_scroll_path(path)
         scr_files += 1
         for j, chunk in enumerate(chunk_text(text)):
             doc_id = f"scr:{rel}:{j}:{sha1(chunk)}"

@@ -8,14 +8,36 @@ import signal
 import subprocess
 import time
 import uuid
+from types import SimpleNamespace
 from datetime import datetime
 from typing import List, Dict, Any, Tuple
 from collections import deque
 
-import ollama
-import chromadb
-from chromadb.config import Settings
-from sentence_transformers import SentenceTransformer
+try:
+    import ollama
+    _OLLAMA_IMPORT_ERROR = None
+except Exception as exc:
+    ollama = SimpleNamespace(chat=None)
+    _OLLAMA_IMPORT_ERROR = exc
+
+try:
+    import chromadb
+    from chromadb.config import Settings
+    _CHROMA_IMPORT_ERROR = None
+except Exception as exc:
+    chromadb = SimpleNamespace(PersistentClient=None)
+
+    def Settings(**kwargs):
+        return kwargs
+
+    _CHROMA_IMPORT_ERROR = exc
+
+try:
+    from sentence_transformers import SentenceTransformer
+    _EMBED_IMPORT_ERROR = None
+except Exception as exc:
+    SentenceTransformer = None
+    _EMBED_IMPORT_ERROR = exc
 
 try:
     from merlin.tools.linux_tool import LinuxTool
@@ -42,12 +64,27 @@ try:
 except Exception:
     detect_intent = None
 
+from merlin.paths import (
+    PROJECT_ROOT,
+    auto_index_scrolls_enabled,
+    audit_fallback_path,
+    chroma_dir,
+    data_dir,
+    describe_paths,
+    history_path,
+    linux_actions_path,
+    linux_pending_path,
+    profile_path,
+    scrolls_dir,
+    scrolls_manifest_path,
+)
 
-MODEL = "qwen2.5:7b"
+
+MODEL = os.getenv("MODEL_NAME", "qwen2.5:7b")
 MAX_TURNS = 15
 
 DEFAULT_TOP_K = 5
-EMBED_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
+EMBED_MODEL_NAME = os.getenv("EMBEDDINGS_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
 
 SYSTEM_PROMPT = """Você é Merlin, o assistente mágico e sábio.
 
@@ -64,21 +101,21 @@ Regras de estilo:
 - Quando não souber, diga que não sabe e sugira como descobrir.
 """
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(BASE_DIR, "data")
-SCROLLS_DIR = os.path.join(BASE_DIR, "scrolls")
-HISTORY_PATH = os.path.join(DATA_DIR, "history.jsonl")
-LINUX_ACTIONS_PATH = os.path.join(DATA_DIR, "linux_actions.jsonl")
-LINUX_PENDING_PATH = os.path.join(DATA_DIR, "linux_pending.json")
+BASE_DIR = str(PROJECT_ROOT)
+DATA_DIR = str(data_dir())
+SCROLLS_DIR = str(scrolls_dir())
+HISTORY_PATH = str(history_path())
+LINUX_ACTIONS_PATH = str(linux_actions_path())
+LINUX_PENDING_PATH = str(linux_pending_path())
 AUDIT_LOG_DEFAULT_PATH = "/var/log/merlin/audit.log"
-AUDIT_LOG_FALLBACK_PATH = os.path.join(DATA_DIR, "merlin_audit.log")
-CHROMA_DIR = os.path.join(DATA_DIR, "chroma")
-RAG_INDEXER_PATH = os.path.join(BASE_DIR, "rag_indexer.py")
+AUDIT_LOG_FALLBACK_PATH = str(audit_fallback_path())
+CHROMA_DIR = str(chroma_dir())
+RAG_INDEXER_MODULE = "rag_indexer"
 
-PROFILE_PATH = os.path.join(SCROLLS_DIR, "perfil_usuario.md")
+PROFILE_PATH = str(profile_path())
 
 # Manifest incremental de scrolls (para não reindexar tudo sempre)
-SCROLLS_MANIFEST_PATH = os.path.join(DATA_DIR, "scrolls_index.json")
+SCROLLS_MANIFEST_PATH = str(scrolls_manifest_path())
 
 # Chunking para indexação de pergaminhos (MVP)
 CHUNK_SIZE = 1000
@@ -94,6 +131,10 @@ _PROCESS_EMBEDDER_CACHE: Dict[str, Any] = {}
 
 def ensure_dirs():
     os.makedirs(DATA_DIR, exist_ok=True)
+    os.makedirs(os.path.dirname(HISTORY_PATH), exist_ok=True)
+    os.makedirs(os.path.dirname(LINUX_ACTIONS_PATH), exist_ok=True)
+    os.makedirs(os.path.dirname(LINUX_PENDING_PATH), exist_ok=True)
+    os.makedirs(os.path.dirname(SCROLLS_MANIFEST_PATH), exist_ok=True)
     os.makedirs(SCROLLS_DIR, exist_ok=True)
     os.makedirs(CHROMA_DIR, exist_ok=True)
 
@@ -554,6 +595,8 @@ def trim_context(messages: List[Dict[str, str]]) -> List[Dict[str, str]]:
 
 
 def stream_chat(messages: List[Dict[str, str]]) -> str:
+    if not callable(getattr(ollama, "chat", None)):
+        raise RuntimeError(f"Ollama indisponível: {_OLLAMA_IMPORT_ERROR}")
     assistant_parts: List[str] = []
     stream = ollama.chat(model=MODEL, messages=messages, stream=True)
 
@@ -709,6 +752,8 @@ def load_profile_content() -> str:
 # ----------------------------
 
 def get_collection():
+    if not callable(getattr(chromadb, "PersistentClient", None)):
+        raise RuntimeError(f"ChromaDB indisponível: {_CHROMA_IMPORT_ERROR}")
     client = chromadb.PersistentClient(
         path=CHROMA_DIR,
         settings=Settings(anonymized_telemetry=False),
@@ -718,8 +763,29 @@ def get_collection():
 
 def ensure_embedder(embedder_cache: Dict[str, Any]):
     if "embedder" not in embedder_cache:
+        if SentenceTransformer is None:
+            raise RuntimeError(f"SentenceTransformer indisponível: {_EMBED_IMPORT_ERROR}")
         embedder_cache["embedder"] = SentenceTransformer(EMBED_MODEL_NAME)
     return embedder_cache["embedder"]
+
+
+def delete_collection_ids(col, ids: List[str]) -> int:
+    if not ids:
+        return 0
+    try:
+        col.delete(ids=ids)
+        return len(ids)
+    except Exception:
+        return 0
+
+
+def maybe_auto_index_scrolls(embedder_cache: Dict[str, Any]) -> Tuple[int, int]:
+    if not auto_index_scrolls_enabled():
+        return 0, 0
+    try:
+        return index_scrolls_incremental(embedder_cache, include_profile=False)
+    except Exception:
+        return 0, 0
 
 
 def chroma_add_text(col, embedder, doc_id: str, text: str, metadata: dict) -> None:
@@ -832,6 +898,7 @@ def process_question(question: str, use_cache: bool = True) -> str:
         result = {"documents": [[]], "metadatas": [[]]}
         rag_block = ""
         try:
+            maybe_auto_index_scrolls(embedder_cache)
             result = retrieve_context(question, embedder_cache, top_k=DEFAULT_TOP_K)
             rag_block = build_rag_block(result)
         except Exception:
@@ -883,13 +950,9 @@ def run_reindex() -> bool:
     """
     Reindex completo (opcional). Incremental cobre histórico.
     """
-    if not os.path.exists(RAG_INDEXER_PATH):
-        print(f"⚠️  Não encontrei {RAG_INDEXER_PATH}. Crie o rag_indexer.py primeiro.")
-        return False
-
     print("🧠 Reindexando memória (histórico + pergaminhos)...")
     try:
-        proc = subprocess.run([sys.executable, RAG_INDEXER_PATH], cwd=BASE_DIR, check=False)
+        proc = subprocess.run([sys.executable, "-m", RAG_INDEXER_MODULE], cwd=BASE_DIR, check=False)
         if proc.returncode == 0:
             print("✅ Reindex concluído.")
             return True
@@ -945,6 +1008,11 @@ def file_fingerprint(path: str) -> str:
     return hashlib.sha1(content).hexdigest()
 
 
+def relative_scroll_path(path: str) -> str:
+    rel = os.path.relpath(path, SCROLLS_DIR)
+    return os.path.join("scrolls", rel).replace("\\", "/")
+
+
 def index_scrolls_incremental(embedder_cache: Dict[str, Any], include_profile: bool = False) -> Tuple[int, int]:
     """
     Indexa apenas arquivos alterados/novos em scrolls (md/txt).
@@ -956,6 +1024,7 @@ def index_scrolls_incremental(embedder_cache: Dict[str, Any], include_profile: b
     files = list_scroll_files()
     if not include_profile:
         files = [p for p in files if os.path.abspath(p) != os.path.abspath(PROFILE_PATH)]
+    file_set = {relative_scroll_path(path) for path in files}
 
     col = get_collection()
     embedder = ensure_embedder(embedder_cache)
@@ -963,8 +1032,14 @@ def index_scrolls_incremental(embedder_cache: Dict[str, Any], include_profile: b
     files_indexed = 0
     chunks_added = 0
 
+    removed_paths = [rel for rel in list(known.keys()) if rel not in file_set]
+    for rel in removed_paths:
+        prev = known.get(rel) or {}
+        delete_collection_ids(col, list(prev.get("doc_ids") or []))
+        known.pop(rel, None)
+
     for path in files:
-        rel = os.path.relpath(path, BASE_DIR)
+        rel = relative_scroll_path(path)
 
         try:
             fp = file_fingerprint(path)
@@ -975,6 +1050,9 @@ def index_scrolls_incremental(embedder_cache: Dict[str, Any], include_profile: b
         if prev and isinstance(prev, dict) and prev.get("fp") == fp:
             continue  # sem mudanças
 
+        if isinstance(prev, dict):
+            delete_collection_ids(col, list(prev.get("doc_ids") or []))
+
         # indexar
         try:
             with open(path, "r", encoding="utf-8") as f:
@@ -983,6 +1061,7 @@ def index_scrolls_incremental(embedder_cache: Dict[str, Any], include_profile: b
             continue
 
         chunks = chunk_text(text)
+        doc_ids: List[str] = []
         for j, chunk in enumerate(chunks):
             doc_id = f"scr_inc:{rel}:{j}:{sha1_text(chunk)[:12]}"
             chroma_add_text(
@@ -992,9 +1071,15 @@ def index_scrolls_incremental(embedder_cache: Dict[str, Any], include_profile: b
                 text=chunk,
                 metadata={"source": "scroll", "path": rel, "chunk_index": j, "mode": "incremental"},
             )
+            doc_ids.append(doc_id)
             chunks_added += 1
 
-        known[rel] = {"fp": fp, "indexed_at": now_iso(), "chunks": len(chunks)}
+        known[rel] = {
+            "fp": fp,
+            "indexed_at": now_iso(),
+            "chunks": len(chunks),
+            "doc_ids": doc_ids,
+        }
         files_indexed += 1
 
     manifest["files"] = known
@@ -1013,6 +1098,7 @@ def cmd_help(linux_enabled: bool = True):
     print("  /reset           - limpa o contexto em memória (não apaga o arquivo)")
     print("  /stats           - estatísticas do contexto em memória")
     print("  /where           - mostra o caminho do history.jsonl")
+    print("  /paths           - mostra os caminhos ativos de dados/estado")
     print("  /reindex         - reindex completo (opcional)")
     print("  /index_scrolls   - indexa incrementalmente pergaminhos (md/txt) alterados")
     print("  /rag             - alterna RAG on/off")
@@ -1106,6 +1192,7 @@ def main():
     print(f"🗂️  Arquivo: {HISTORY_PATH}")
     print(f"📚 Pergaminhos: {SCROLLS_DIR}")
     print(f"👤 Perfil: {PROFILE_PATH}")
+    print(f"🧭 Storage mode: {describe_paths().get('storage_mode')}")
     print(f"🧠 Chroma: {CHROMA_DIR} | RAG={'ON' if rag_enabled else 'OFF'} | top_k={top_k}")
     if linux_read_only:
         print("🔒 Linux read-only mode: confirmações bloqueadas (LINUX_READ_ONLY=1)")
@@ -1144,6 +1231,11 @@ def main():
 
         if user.startswith("/where"):
             print(HISTORY_PATH)
+            continue
+
+        if user.startswith("/paths"):
+            for key, value in describe_paths().items():
+                print(f"{key}={value}")
             continue
 
         if user.startswith("/profile"):
@@ -1918,6 +2010,7 @@ def main():
         last_rag_sources = []
         if rag_enabled:
             try:
+                maybe_auto_index_scrolls(embedder_cache)
                 res = retrieve_context(user, embedder_cache, top_k=top_k)
                 rag_block = build_rag_block(res)
 

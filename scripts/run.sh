@@ -12,7 +12,6 @@ export OMP_NUM_THREADS=14
 export MKL_NUM_THREADS=14
 export NUMEXPR_NUM_THREADS=14
 
-# Memória semântica: atualizar rápido (versão final de hoje)
-export MERLIN_PROFILE_UPDATE_EVERY=2
+export MERLIN_STORAGE_MODE="${MERLIN_STORAGE_MODE:-project}"
 
-exec python merlin_cli.py
+exec python -m merlin_cli

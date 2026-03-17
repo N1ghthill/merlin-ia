@@ -4,10 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "merlin-ia"
-version = "0.1.0"
-description = "Assistente local-first com RAG usando Ollama e ChromaDB."
+version = "0.3.0"
+description = "Assistente local-first para Linux com RAG, CLI, API local e Linux Agent."
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 license = { file = "LICENSE" }
 authors = [
   { name = "N1ghthill" }
@@ -25,7 +25,8 @@ keywords = [
   "privacy-tools",
   "offline-ai",
   "developer-tools",
-  "electron-app",
+  "local-api",
+  "linux-agent",
   "security",
   "cli"
 ]
@@ -36,10 +37,10 @@ classifiers = [
   "License :: OSI Approved :: MIT License",
   "Operating System :: POSIX :: Linux",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.8",
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Topic :: Software Development :: Build Tools",
   "Topic :: System :: Systems Administration",
   "Topic :: Utilities"
@@ -54,12 +55,15 @@ Issues = "https://github.com/N1ghthill/merlin-ia/issues"
 
 [project.scripts]
 merlin-ia = "merlin_cli:main"
+merlin-api = "merlin_api:main"
+merlin-index = "rag_indexer:main"
 
 [tool.setuptools]
 include-package-data = true
+py-modules = ["merlin_cli", "merlin_api", "rag_indexer"]
 
 [tool.setuptools.packages.find]
-include = ["merlin*"]
+include = ["merlin*", "executor*"]
 
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }

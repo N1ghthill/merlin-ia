@@ -1,32 +1,34 @@
 # Primeira Invocação do Merlin
 
-Este guia cobre a primeira execução do Merlin em modo controlado para validar ambiente, resposta inicial e logs principais.
-
-## Objetivo
-
-Executar o Merlin no CLI com segurança para confirmar que dependências, modelos e integração básica estão funcionais.
+Este guia cobre a primeira execução do Merlin no CLI.
 
 ## Passo a passo
 
-1. Ative o ambiente virtual:
+1. Ative o ambiente:
 
 ```bash
 source .venv/bin/activate
 ```
 
-2. Execute o Merlin no CLI:
+2. Abra o Merlin:
 
 ```bash
-python merlin_cli.py
+merlin-ia
 ```
 
-3. Faça um comando simples de teste:
+3. Liste os caminhos ativos:
+
+```text
+/paths
+```
+
+4. Faça um teste simples:
 
 ```text
 /help
 ```
 
-4. Opcionalmente, teste um comando Linux em modo dry-run:
+5. Opcionalmente, valide o Linux Agent em modo seguro:
 
 ```text
 /linux-diagnose ssh 50
@@ -35,5 +37,5 @@ python merlin_cli.py
 ## Resultado esperado
 
 - Inicialização sem erro fatal.
-- Resposta do comando `/help`.
-- Logs sendo gerados normalmente.
+- Resposta de `/help`.
+- Caminhos de dados e histórico visíveis em `/paths`.

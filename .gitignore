@@ -13,20 +13,7 @@ ENV/
 merlin-venv/
 .env
 
-# Electron
-electron/node_modules/
-electron/dist/
-electron/out/
-electron-app/node_modules/
-electron-app/dist/
-electron-app/out/
-
-# Builds
-*.deb
-*.rpm
-*.exe
-*.dmg
-*.AppImage
+# Build artifacts
 dist/
 build/
 *.egg-info/
@@ -50,7 +37,7 @@ logs/*.log
 data/*
 !data/.gitkeep
 
-# User scrolls (local)
+# Local scrolls overrides
 scrolls/perfil_usuario.md
 scrolls/*.txt
 

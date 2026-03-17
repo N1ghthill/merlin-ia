@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""API HTTP local para o Merlin IA conversar com o Electron."""
+"""API HTTP local do Merlin IA, pensada como contrato para integrações e futura interface web."""
 
 import argparse
 import logging
@@ -10,6 +10,8 @@ from pathlib import Path
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
+from merlin.paths import describe_paths, scrolls_dir
+
 # Importa o core do Merlin de forma resiliente: a API sobe mesmo se faltar
 # alguma dependência Python e retorna erro explícito para o frontend.
 APP_ROOT = Path(__file__).parent
@@ -19,13 +21,28 @@ _core_import_error = None
 _rag_import_error = None
 
 try:
-    from merlin_cli import process_question, load_profile_content
+    from merlin_cli import (
+        file_fingerprint,
+        load_profile_content,
+        load_scrolls_manifest,
+        process_question,
+        relative_scroll_path,
+    )
 except Exception as exc:
     process_question = None
     _core_import_error = exc
 
     def load_profile_content():
         return ""
+
+    def load_scrolls_manifest():
+        return {"files": {}}
+
+    def file_fingerprint(_path: str) -> str:
+        return ""
+
+    def relative_scroll_path(path: str) -> str:
+        return path
 
 try:
     import rag_indexer
@@ -77,22 +94,30 @@ def ask():
 
 @app.route("/documents", methods=["GET"])
 def list_documents():
-    """Lista documentos indexados."""
+    """Lista documentos disponíveis em scrolls/ com status real de indexação."""
     try:
-        scrolls_dir = APP_ROOT / "scrolls"
+        documents_root = Path(scrolls_dir())
+        manifest = load_scrolls_manifest()
+        known = manifest.get("files", {}) if isinstance(manifest, dict) else {}
         documents = []
-        if scrolls_dir.exists():
-            for file_path in sorted(scrolls_dir.rglob("*")):
+        if documents_root.exists():
+            for file_path in sorted(documents_root.rglob("*")):
                 if not file_path.is_file():
                     continue
-                if file_path.suffix.lower() not in {".txt", ".md", ".pdf"}:
+                if file_path.suffix.lower() not in {".txt", ".md"}:
                     continue
+                rel = relative_scroll_path(str(file_path))
+                indexed = False
+                try:
+                    indexed = (known.get(rel) or {}).get("fp") == file_fingerprint(str(file_path))
+                except Exception:
+                    indexed = False
                 documents.append(
                     {
                         "name": file_path.name,
                         "path": str(file_path),
                         "size": file_path.stat().st_size,
-                        "indexed": True,
+                        "indexed": indexed,
                     }
                 )
         return jsonify({"documents": documents})
@@ -133,6 +158,7 @@ def health():
             "core_ready": process_question is not None,
             "rag_ready": rag_indexer is not None,
             "profile_loaded": bool(load_profile_content()),
+            "paths": describe_paths(),
             "core_error": _exc_message(_core_import_error),
             "rag_error": _exc_message(_rag_import_error),
         }

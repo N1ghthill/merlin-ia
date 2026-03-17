@@ -313,26 +313,17 @@ def test_profile_helpers(isolated_rag_paths):
     assert "Iris" in answer
 
 
-def test_run_reindex_missing_file(monkeypatch):
-    monkeypatch.setattr(merlin_cli.os.path, "exists", lambda _p: False)
-    assert not merlin_cli.run_reindex()
-
-
 def test_run_reindex_sucesso(monkeypatch):
-    monkeypatch.setattr(merlin_cli.os.path, "exists", lambda _p: True)
     monkeypatch.setattr(merlin_cli.subprocess, "run", lambda *_a, **_k: _DummyResult(returncode=0))
     assert merlin_cli.run_reindex()
 
 
 def test_run_reindex_retorno_nao_zero(monkeypatch):
-    monkeypatch.setattr(merlin_cli.os.path, "exists", lambda _p: True)
     monkeypatch.setattr(merlin_cli.subprocess, "run", lambda *_a, **_k: _DummyResult(returncode=2))
     assert not merlin_cli.run_reindex()
 
 
 def test_run_reindex_com_excecao(monkeypatch):
-    monkeypatch.setattr(merlin_cli.os.path, "exists", lambda _p: True)
-
     def _raise(*_a, **_k):
         raise RuntimeError("boom")
 
@@ -380,6 +371,15 @@ def test_load_scrolls_manifest_variacoes(isolated_rag_paths):
 
     manifest_path.write_text("{json invalido", encoding="utf-8")
     assert merlin_cli.load_scrolls_manifest() == {"files": {}}
+
+
+def test_relative_scroll_path_padroniza_prefixo(isolated_rag_paths):
+    scrolls_dir = isolated_rag_paths["scrolls_dir"]
+    path = scrolls_dir / "subdir" / "doc.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("conteudo", encoding="utf-8")
+
+    assert merlin_cli.relative_scroll_path(str(path)) == "scrolls/subdir/doc.md"
 
 
 def test_manifest_scrolls_e_indexacao(isolated_rag_paths, chroma_in_memory_collection, fake_embedder):

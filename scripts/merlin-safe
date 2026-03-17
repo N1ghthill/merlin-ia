@@ -30,5 +30,7 @@ fi
 
 export MERLIN_ENABLE_EXECUTOR=0
 export LINUX_READ_ONLY=1
+export MERLIN_STORAGE_MODE="${MERLIN_STORAGE_MODE:-project}"
 
-exec "$PYTHON_BIN" "$ROOT_DIR/merlin_cli.py"
+cd "$ROOT_DIR"
+exec "$PYTHON_BIN" -m merlin_cli

@@ -28,6 +28,57 @@ class FakeEmbedder:
         return _FakeEmbeddings(vectors)
 
 
+class InMemoryCollection:
+    def __init__(self) -> None:
+        self._items: Dict[str, Dict[str, object]] = {}
+
+    def add(self, ids, documents, metadatas, embeddings) -> None:
+        for item_id, document, metadata, embedding in zip(ids, documents, metadatas, embeddings):
+            self._items[str(item_id)] = {
+                "document": document,
+                "metadata": metadata,
+                "embedding": embedding,
+            }
+
+    def count(self) -> int:
+        return len(self._items)
+
+    def get(self, include=None):
+        include = include or []
+        ids = list(self._items.keys())
+        payload = {"ids": ids}
+        if "documents" in include:
+            payload["documents"] = [self._items[item_id]["document"] for item_id in ids]
+        if "metadatas" in include:
+            payload["metadatas"] = [self._items[item_id]["metadata"] for item_id in ids]
+        if "embeddings" in include:
+            payload["embeddings"] = [self._items[item_id]["embedding"] for item_id in ids]
+        return payload
+
+    def delete(self, ids) -> None:
+        for item_id in ids:
+            self._items.pop(str(item_id), None)
+
+    def query(self, query_embeddings, n_results, include):
+        query_vec = list((query_embeddings or [[0.0]])[0])
+        ranked = []
+        for item_id, item in self._items.items():
+            emb = list(item.get("embedding") or [])
+            score = sum(a * b for a, b in zip(query_vec, emb))
+            ranked.append((score, item_id, item))
+        ranked.sort(reverse=True, key=lambda tup: tup[0])
+        top = ranked[: max(0, int(n_results))]
+
+        payload = {"ids": [[item_id for _, item_id, _ in top]]}
+        if "documents" in include:
+            payload["documents"] = [[item["document"] for _, _, item in top]]
+        if "metadatas" in include:
+            payload["metadatas"] = [[item["metadata"] for _, _, item in top]]
+        if "embeddings" in include:
+            payload["embeddings"] = [[item["embedding"] for _, _, item in top]]
+        return payload
+
+
 @pytest.fixture
 def isolated_rag_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Dict[str, Path]:
     """Isola os caminhos usados pelo RAG para diretórios temporários."""
@@ -76,14 +127,11 @@ def isolated_rag_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Dict[
 
 @pytest.fixture
 def chroma_in_memory_collection(monkeypatch: pytest.MonkeyPatch):
-    """Coleção ChromaDB em memória compartilhada pelos testes."""
-    import chromadb
-    import uuid
+    """Coleção em memória compartilhada pelos testes."""
     import merlin_cli
     import rag_indexer
 
-    client = chromadb.EphemeralClient()
-    collection = client.get_or_create_collection(name=f"merlin_memory_{uuid.uuid4().hex}")
+    collection = InMemoryCollection()
 
     monkeypatch.setattr(rag_indexer, "get_collection", lambda: collection)
     monkeypatch.setattr(merlin_cli, "get_collection", lambda: collection)

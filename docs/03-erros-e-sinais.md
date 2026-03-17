@@ -1,16 +1,17 @@
 # Erros e Sinais
 
-Este guia resume sinais comuns de falha e um fluxo de diagnóstico rápido para resolver problemas sem comprometer o ambiente.
+Este guia resume falhas comuns e um fluxo curto de diagnóstico.
 
 ## Sinais comuns
 
-- Falha ao conectar no Ollama.
-- Erro de dependência Python ausente.
+- Ollama não responde.
+- Dependência Python ausente.
+- RAG não encontra documentos esperados.
 - Comandos `/linux-*` não executam por falta de executor/socket.
 
-## Passo a passo de diagnóstico
+## Diagnóstico rápido
 
-1. Confirme que o ambiente virtual está ativo e dependências instaladas:
+1. Ative o ambiente e garanta dependências:
 
 ```bash
 source .venv/bin/activate
@@ -21,15 +22,27 @@ pip install -r requirements.txt -r requirements-dev.txt
 
 ```bash
 ollama --version
+ollama list
 ```
 
-3. Execute o CLI em modo verboso para capturar contexto:
+3. Abra o CLI e consulte os caminhos:
 
 ```bash
-python merlin_cli.py
+merlin-ia
 ```
 
-4. Para problemas Linux Agent, valide socket e serviço:
+```text
+/paths
+```
+
+4. Reindexe os dados locais se necessário:
+
+```text
+/index_scrolls
+/reindex
+```
+
+5. Para problemas no Linux Agent:
 
 ```bash
 ls -l /run/linux-agent/agent.sock
@@ -38,4 +51,9 @@ systemctl status linux-agent.socket
 
 ## Quando abrir issue
 
-Abra uma issue se o erro persistir, incluindo comando executado, trecho de log e ambiente utilizado.
+Inclua:
+
+- comando executado
+- mensagem de erro
+- saída de `/paths`
+- versão do Python e do Ollama
