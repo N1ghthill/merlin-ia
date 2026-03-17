@@ -120,7 +120,7 @@ O fluxo de escrita continua protegido:
 
 ## Qualidade
 
-- Repositório com 91 testes versionados.
+- Repositório com 96 testes versionados.
 - Workflow do GitHub Actions executa a suíte versionada em `tests/`.
 - `make compile` valida a compilação dos módulos Python.
 
