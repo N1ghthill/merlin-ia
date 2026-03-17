@@ -23,6 +23,13 @@ Assistente local-first para Linux com RAG em documentos, CLI, API HTTP local e u
 - Camada estável de integração via API HTTP local.
 - Projeto Python empacotável com CLI, testes versionados e documentação operacional.
 
+## Casos de Uso
+
+- Consulta privada de documentação técnica, runbooks e notas internas sem enviar dados para terceiros.
+- Assistente local para troubleshooting e diagnóstico operacional em hosts Linux.
+- Base local de conhecimento para times que precisam combinar RAG com automação controlada.
+- Contrato de backend para uma futura interface web sem duplicar a lógica de negócio no frontend.
+
 ## Arquitetura
 
 ```mermaid

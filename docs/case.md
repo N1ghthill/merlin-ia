@@ -17,6 +17,13 @@ Um core Python local com:
 - RAG em documentos `Markdown` e `TXT`
 - Linux Agent com execução controlada
 
+## Casos de uso representativos
+
+- consultar documentação privada, runbooks e procedimentos internos sem depender de serviços externos
+- acelerar troubleshooting de serviços Linux com contexto recuperado do acervo local
+- manter uma base local de conhecimento operacional com indexação e reindexação controladas
+- expor um backend local reutilizável por CLI, automações e futura interface web
+
 ## Decisões de arquitetura
 
 - `local-first`: conhecimento, histórico e índices permanecem no host.
