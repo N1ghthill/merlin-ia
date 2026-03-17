@@ -1,4 +1,4 @@
-# Linux Agent Deploy Guide (Draft)
+# Linux Agent Deploy Guide
 
 This guide describes a safe, minimal deployment for the executor + Merlin integration.
 
@@ -99,7 +99,7 @@ Optional (recommended for `read.journalctl`):
 ## 8) Merlin CLI integration
 Run the Merlin CLI:
 ```bash
-python3 merlin_cli.py
+merlin-ia
 ```
 Then use:
 ```

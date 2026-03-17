@@ -1,47 +1,52 @@
-# 📦 Instalação do Merlin IA
+# Instalação do Merlin IA
 
-Este guia cobre a instalação do Merlin IA em Linux e também o caminho de build para Windows e macOS.
+Este guia cobre a instalação do Merlin IA a partir do código-fonte em Linux.
 
-## Linux (Ubuntu/Debian)
+## Pré-requisitos
 
-### Via `.deb` (recomendado)
+```bash
+sudo apt install -y python3 python3-pip python3-venv
+```
 
-1. Baixe o `.deb` da [página de releases](https://github.com/N1ghthill/merlin-ia/releases)
-2. Instale: `sudo dpkg -i merlin-ia*.deb`
-3. Execute: `merlin-ia`
+Ollama também precisa estar disponível no host:
 
-### Via código-fonte (para desenvolvimento)
+```bash
+ollama --version
+ollama pull qwen2.5:7b
+```
+
+## Instalação
 
 ```bash
 git clone https://github.com/N1ghthill/merlin-ia.git
 cd merlin-ia
+
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
-pip install -r requirements-dev.txt
-
-# CLI mode
-python merlin_cli.py
-
-# UI mode (Electron)
-cd electron
-npm install
-npm start
+pip install --upgrade pip
+pip install -r requirements.txt -r requirements-dev.txt
+pip install -e .
 ```
 
-## Windows
+## Verificação Rápida
 
 ```bash
-# Build do .exe
-cd electron
-npm run dist:win
-# O instalador estará em electron/dist/
+source .venv/bin/activate
+merlin-ia
+merlin-api --port 3030
+merlin-index
 ```
 
-## macOS
+## Armazenamento
+
+- Em um clone Git gravável, o Merlin tende a usar `MERLIN_STORAGE_MODE=project`, com dados em `./data` e documentos em `./scrolls`.
+- Fora desse cenário, usa `MERLIN_STORAGE_MODE=user`, com paths XDG em `~/.local/share/merlin-ia` e `~/.local/state/merlin-ia`.
+
+Para fixar o modo manualmente:
 
 ```bash
-# Build do .dmg
-cd electron
-npm run dist:mac
+export MERLIN_STORAGE_MODE=project
+export MERLIN_STORAGE_MODE=user
 ```
+
+Também é possível sobrescrever paths específicos com `MERLIN_SCROLLS_DIR`, `MERLIN_HISTORY_PATH`, `MERLIN_CHROMA_DIR` e variáveis correlatas.

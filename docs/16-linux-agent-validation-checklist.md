@@ -1,4 +1,7 @@
-# Linux Agent Validation Checklist
+# Linux Agent Validation Checklist (Historical Execution Checklist)
+
+This checklist reflects the original validation runbook used during the Linux Agent rollout.
+It is preserved for traceability; for current operational context, pair it with `docs/11-linux-agent-deploy.md` and `docs/17-linux-agent-validation-report.md`.
 
 ## Pre-Deploy
 - [ ] `bash scripts/check_requirements.sh`
@@ -22,7 +25,7 @@
 
 ## CLI (Read-Only)
 - [ ] `export LINUX_READ_ONLY=1`
-- [ ] `python3 merlin_cli.py`
+- [ ] `merlin-ia`
 - [ ] `/linux-diagnose ssh 50`
 
 ## Dry-Run Write

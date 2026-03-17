@@ -1,4 +1,7 @@
-# Linux Agent Requirements (Draft)
+# Linux Agent Requirements (Historical Planning Document)
+
+This document is kept as an implementation-phase artifact.
+For the current reference set, prefer `docs/04-linux-agent-executor.md`, `docs/11-linux-agent-deploy.md`, `docs/12-linux-agent-troubleshooting.md`, `docs/14-linux-agent-compatibility.md`, and `docs/17-linux-agent-validation-report.md`.
 
 This document translates the executor spec into implementation requirements and acceptance criteria.
 
@@ -72,7 +75,7 @@ This document translates the executor spec into implementation requirements and 
 - AC-12: `pkg.install`, `service.control`, and `ansible.playbook` execute with sudo wrappers.
 - AC-13: Playbooks are restricted to allowlisted paths.
 
-## Implementation Task List (Draft)
+## Implementation Task List
 - T-1: Build executor skeleton with Unix socket, endpoints, and strict validation.
 - T-2: Implement action catalog for `read.*`.
 - T-3: Add timeout handling with subprocess termination.
@@ -82,4 +85,3 @@ This document translates the executor spec into implementation requirements and 
 - T-7: Add confirmation flow in agent loop.
 - T-8: Write Docker-based smoke tests.
 - T-9: Add playbook allowlist and sudo wrapper design.
-

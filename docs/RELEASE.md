@@ -1,24 +1,32 @@
-# Release Notes — v0.1.0 (2026-02-18)
+# Release Notes — v0.3.0 (2026-03-17)
 
 ## Highlights
-- Executor local seguro via Unix socket.
-- Dry-run + confirmação explícita para ações de escrita.
-- CLI com intents Linux, histórico persistente e integração com RAG.
-- Infra de produção: systemd, sudoers, wrappers, logrotate.
 
-## Added
-- Executor com ações estruturadas (`read.*`, `service.control`, `pkg.install`, `ansible.playbook`).
-- Segurança com allowlists, ACL policy e verificação de UID/GID.
-- Scripts operacionais (deploy, rollback, smoke, post-deploy).
-- Documentação extensa para operação e troubleshooting.
+- Projeto reposicionado em torno de CLI, API local e Linux Agent.
+- Interface Electron e materiais de packaging desktop removidos do escopo ativo.
+- Documentação principal reescrita para leitura rápida, onboarding e avaliação técnica.
 
 ## Changed
-- CLI ampliado com comandos Linux e confirmação explícita.
-- Preview ansible com `--check --diff` e resumo de diff.
 
-## Known Issues
-- Testes não executados neste ambiente (pytest ausente).
-- Deploy e socket activation ainda não validados em host real.
+- `README.md` e `docs/README.md` agora expõem somente as superfícies atuais do projeto.
+- A API local permanece explicitamente como contrato da futura interface web.
+- A persistência documentada acompanha o comportamento real de `merlin.paths`, com modos `project` e `user`.
 
-## Validation
-- Final validation report: `docs/17-linux-agent-validation-report.md`
+## Removed
+
+- `electron/`, `electron-app/`, ícones e screenshots antigos.
+- Scripts e referências públicas ligados a build do app desktop.
+
+## Recommended Validation
+
+- `make test`
+- `make compile`
+- `merlin-ia`
+- `merlin-api --port 3030`
+- `merlin-index`
+
+## Related Docs
+
+- `docs/arquitetura.md`
+- `docs/04-linux-agent-executor.md`
+- `docs/17-linux-agent-validation-report.md`

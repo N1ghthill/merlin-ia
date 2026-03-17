@@ -1,4 +1,7 @@
-# Linux Agent Status (Implementation + Gaps)
+# Linux Agent Status Snapshot (Historical)
+
+This file is a status snapshot from the implementation phase.
+Some gaps listed below reflect the validation context at the time and should be read as historical notes, not as the current public summary.
 
 This document summarizes what is implemented, expected behavior, and what still needs testing or completion.
 

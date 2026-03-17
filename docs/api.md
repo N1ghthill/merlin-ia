@@ -1,36 +1,53 @@
 # API do Merlin IA
 
-Este guia mostra como usar a API local do Merlin IA para integrar automações e ferramentas externas com segurança.
+Este guia mostra como usar a API HTTP local do Merlin IA. Ela continua no projeto como contrato de integração e como base para a futura interface web.
 
-## O que este guia cobre
-
-- Como iniciar o serviço da API.
-- Como validar se a API está respondendo.
-- Exemplos de requisições básicas.
-
-## Passo a passo
-
-1. Ative o ambiente virtual e instale dependências:
+## Subir a API
 
 ```bash
-python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt -r requirements-api.txt
+merlin-api --port 3030
 ```
 
-2. Inicie a API local:
+## Endpoints principais
 
-```bash
-python merlin_api.py --port 3030
-```
+- `GET /health`: estado da API, readiness e paths ativos.
+- `GET /documents`: lista documentos `.md` e `.txt` encontrados em `scrolls_dir`.
+- `POST /ask`: recebe `{"question": "..."}` e retorna a resposta do Merlin.
+- `POST /index`: dispara reindexação assíncrona do acervo local.
 
-3. Teste um endpoint de saúde (exemplo):
+## Exemplos
+
+Saúde:
 
 ```bash
 curl -s http://127.0.0.1:3030/health
 ```
 
-## Próximos passos
+Documentos:
 
-- Combine a API com scripts de automação para tarefas repetitivas.
-- Consulte também o guia de uso geral em [Como Usar](./02-como-usar.md).
+```bash
+curl -s http://127.0.0.1:3030/documents
+```
+
+Pergunta:
+
+```bash
+curl -s http://127.0.0.1:3030/ask \
+  -H 'Content-Type: application/json' \
+  -d '{"question":"Qual é o contexto dos meus documentos?"}'
+```
+
+Reindex:
+
+```bash
+curl -s -X POST http://127.0.0.1:3030/index
+```
+
+## Observações
+
+- A API escuta em `127.0.0.1` por padrão.
+- `/documents` lista somente arquivos `.md` e `.txt`.
+- O payload de `health` expõe os caminhos ativos de runtime para facilitar diagnóstico.
+- A recomendação é que qualquer frontend futuro use esta API, e não acesso direto ao core Python.
+- Se o core Python ou o indexador não estiverem carregáveis, a API sobe mesmo assim e retorna erro explícito em `503`.

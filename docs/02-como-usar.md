@@ -1,33 +1,66 @@
-# 🧙 Como Usar o Merlin IA
+# Como Usar o Merlin IA
 
-Este guia apresenta o fluxo de uso no dia a dia, tanto pela interface gráfica quanto pela linha de comando.
+Este guia resume o fluxo de uso diário pelo CLI e pela API local.
 
-## Interface Gráfica (Recomendada)
-
-1. Execute `merlin-ia` no terminal
-2. O ícone do Merlin aparecerá na bandeja do sistema
-3. Clique para abrir a janela
-4. Digite sua pergunta e pressione Enter
-
-## Interface de Linha de Comando
+## CLI
 
 ```bash
-python merlin_cli.py
-
-# Comandos internos:
-# /help - ajuda
-# /profile - ver perfil
-# /set <chave> <valor> - definir perfil
-# /linux-diagnose <serviço> - diagnóstico
+source .venv/bin/activate
+merlin-ia
 ```
 
-## Adicionando Documentos
+Comandos úteis:
 
-Coloque seus arquivos (`.txt`, `.md`, `.pdf`) na pasta `scrolls/` e eles serão automaticamente indexados.
+- `/help`
+- `/paths`
+- `/profile`
+- `/set <chave> <valor>`
+- `/index_scrolls`
+- `/reindex`
 
-## Exemplos de Perguntas
+## Documentos locais
+
+1. Descubra o diretório ativo com `/paths`.
+2. Coloque seus arquivos `.md` e `.txt` em `scrolls_dir`.
+3. Faça a pergunta no CLI.
+
+O Merlin tenta indexar scrolls alterados automaticamente antes da recuperação. Se quiser forçar o processo, use `/index_scrolls` ou `merlin-index`.
+
+## API local
+
+Se você quiser automatizar o uso do Merlin ou preparar a futura interface web, use a API em vez de chamar o core diretamente.
+
+```bash
+source .venv/bin/activate
+merlin-api --port 3030
+```
+
+Exemplo:
+
+```bash
+curl -s http://127.0.0.1:3030/health
+curl -s http://127.0.0.1:3030/documents
+curl -s http://127.0.0.1:3030/ask \
+  -H 'Content-Type: application/json' \
+  -d '{"question":"Resuma meus documentos"}'
+```
+
+## Linux Agent opcional
+
+Para habilitar o executor Linux:
+
+```bash
+export MERLIN_ENABLE_EXECUTOR=1
+merlin-ia
+```
+
+O fluxo de escrita continua protegido por `dry-run`, confirmação explícita, ACL e auditoria.
+
+## Exemplos de perguntas e comandos
 
 - "Resuma meus documentos sobre Python"
-- "O que tem no meu arquivo de planejamento?"
+- "O que mudou no meu plano de deploy?"
 - "Diagnostique o serviço SSH"
 - "Instale o nginx no meu sistema"
+- `/linux-diagnose ssh 50`
+- `/linux-install nginx`

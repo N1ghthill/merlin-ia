@@ -1,44 +1,61 @@
-# 🤝 Contribuindo para o Merlin IA
+# Contribuindo para o Merlin IA
 
-## Ambiente de Desenvolvimento
+## Ambiente de desenvolvimento
 
 ```bash
 git clone https://github.com/N1ghthill/merlin-ia.git
 cd merlin-ia
+
+sudo apt install -y python3 python3-pip python3-venv
+
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
-pip install -r requirements-dev.txt
+pip install --upgrade pip
+pip install -r requirements.txt -r requirements-dev.txt
+pip install -e .
 ```
 
-## Testes
-
-NUNCA quebre os testes. Mantenha sempre:
+Se quiser manter histórico, Chroma e scrolls dentro do próprio repositório:
 
 ```bash
-pytest tests/ -v                     # 91 testes devem passar
-pytest --cov=merlin_cli tests/       # >70%
-pytest --cov=executor tests/          # >60%
+export MERLIN_STORAGE_MODE=project
+```
+
+## Validações locais
+
+```bash
+make test
+make compile
+```
+
+Para rodar cobertura:
+
+```bash
+pytest --cov=merlin_cli --cov=merlin --cov=executor tests/
 ```
 
 ## Estrutura
 
-- `merlin/` - Core do assistente
-- `executor/` - Linux Agent
-- `electron/` - UI Desktop
-- `tests/` - Testes (mantenha sempre atualizados)
+- `merlin_cli.py`: CLI.
+- `merlin_api.py`: API local e contrato da futura interface web.
+- `rag_indexer.py`: reindexação completa.
+- `merlin/`: paths e integrações.
+- `executor/`: Linux Agent.
+- `tests/`: suíte automatizada.
+- `docs/`: documentação de uso e operação.
 
-## Pull Requests
+## Pull requests
 
-1. Faça um fork do projeto
-2. Crie uma branch: `git checkout -b feature/amazing`
-3. Commit suas mudanças: `git commit -m 'Add amazing feature'`
-4. Push: `git push origin feature/amazing`
-5. Abra um Pull Request
+1. Crie uma branch.
+2. Faça a mudança completa, incluindo testes e docs quando necessário.
+3. Rode `make test` e `make compile`.
+4. Abra a PR com contexto, impacto e forma de validação.
 
-## Padrões
+## Regras práticas
 
-- Python: Black + isort
-- JavaScript: Prettier
-- Testes: pytest obrigatório
-- Documentação: atualize sempre
+- Mantenha `README.md` e `docs/README.md` alinhados com o estado público do projeto.
+- Não quebre a compatibilidade do CLI sem atualizar a documentação.
+- Prefira mudanças pequenas e verificáveis.
+- Não adicione dependências pesadas sem necessidade real.
+- Se uma interface ou script sair de escopo, remova a menção pública no mesmo conjunto de mudanças.
+- Se mexer em fluxos do Linux Agent, revise também os docs em `docs/04-*` a `docs/18-*`.

@@ -1,150 +1,147 @@
-# 🧙 Merlin IA
+# Merlin IA
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
-![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)
+![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)
 ![Tests](https://img.shields.io/github/actions/workflow/status/N1ghthill/merlin-ia/tests.yml?branch=main&label=tests)
 ![Last Commit](https://img.shields.io/github/last-commit/N1ghthill/merlin-ia)
 ![Issues](https://img.shields.io/github/issues/N1ghthill/merlin-ia)
 
-![Preview da interface do Merlin IA](docs/images/merlin-ui-preview.svg)
+Assistente local-first para Linux com RAG em documentos, CLI, API HTTP local e um Linux Agent com execução controlada.
 
-**Seu assistente Linux inteligente e 100% privado.**
+## Resumo
 
-O Merlin IA é um assistente local-first para Linux que combina RAG em documentos, automação de sistema e interface desktop/CLI sem enviar dados para serviços externos.
+- Core Python único para CLI, API local e indexação RAG.
+- Respostas locais com `Ollama` + `ChromaDB` sobre arquivos `Markdown` e `TXT`.
+- Linux Agent opcional com `dry-run`, confirmação explícita, ACL e auditoria.
+- Foco atual em uso local via CLI e API. A futura interface web deve consumir a API já existente.
+- Persistência configurável por modo de armazenamento e variáveis de ambiente.
 
-## Visão Rápida
+## O Que Este Repositório Demonstra
 
-- IA local com `Ollama` + `ChromaDB`.
-- Consulta a `PDF`, `TXT` e `Markdown` via RAG.
-- Automação Linux com diagnóstico, instalação, hardening e lockdown.
-- Uso por `CLI`, app desktop `Electron` e API HTTP local.
-- Distribuição real com instaladores `.deb`, `.rpm`, `.dmg`, `.exe` e `AppImage`.
-
-## Case Summary
-
-- Problema: consultar documentação privada e automatizar rotinas operacionais sem depender de nuvem.
-- Solução: um único core Python com RAG, Linux Agent e múltiplas superfícies de uso.
-- Relevância técnica: demonstra backend local, integração com sistema operacional, IA aplicada, packaging e documentação de produto.
-
-## Casos de Uso Reais
-
-- Base de conhecimento privada para manuais, runbooks e documentação interna.
-- Diagnóstico assistido e troubleshooting de serviços Linux.
-- Automação local de setup, instalação de pacotes e hardening.
-- Assistente técnico para times ou ambientes com requisitos fortes de privacidade.
+- Assistente local-first voltado para privacidade e uso em Linux.
+- Separação clara entre chat, recuperação de contexto e execução operacional.
+- Camada estável de integração via API HTTP local.
+- Projeto Python empacotável com CLI, testes versionados e documentação operacional.
 
 ## Arquitetura
 
 ```mermaid
 flowchart TD
-    U[Usuario] --> CLI[CLI]
-    U --> UI[Desktop UI Electron]
-    UI --> API[API HTTP local]
+    U[Usuário] --> CLI[CLI]
+    U --> API[API local]
+    WEB[Interface web futura] -.-> API
     CLI --> CORE[Merlin Core Python]
     API --> CORE
     CORE --> RAG[RAG pipeline]
     CORE --> AGENT[Linux Agent]
-    RAG --> DOCS[PDF / TXT / MD]
+    RAG --> DOCS[Markdown / TXT]
     RAG --> OLLAMA[Ollama local]
     RAG --> CHROMA[ChromaDB]
     AGENT --> OS[Sistema Linux]
 ```
 
-## Stack / Componentes
-
-| Camada | Tecnologias / responsabilidade |
-| --- | --- |
-| Core | `Python 3.8+`, orquestração do assistente, CLI e regras de execução |
-| API local | `Flask` + `Flask-CORS` para integrar UI desktop e automações locais |
-| IA / Conhecimento | `Ollama`, `ChromaDB`, embeddings e pipeline RAG |
-| Desktop | `Electron` com UI simples e focada em chat operacional |
-| Automação | Linux Agent, dry-run, auditoria e ações de hardening |
-| Packaging | `electron-builder` para `.deb`, `.rpm`, `.dmg`, `.exe` e `AppImage` |
-| Qualidade | `91` testes versionados + documentação técnica de instalação, API e build |
-
-## Status do Projeto
-
-| Área | Estado atual | Evidência |
-| --- | --- | --- |
-| RAG em documentos locais | ✅ Implementado | indexação incremental e recuperação contextual |
-| Linux Agent | ✅ Implementado | diagnose, install, harden e lockdown |
-| Interfaces | ✅ CLI + Electron + API local | mesmo core Python exposto em múltiplas entradas |
-| Packaging | ✅ Disponível | build para Linux, Windows e macOS |
-| Testes | ✅ 91 testes | suíte `unit` e `integration` no repositório |
-
-## Instalação Rápida (Ubuntu/Debian)
-
-```bash
-# Baixe o .deb da última release
-gh release download --repo N1ghthill/merlin-ia --pattern '*.deb'
-
-# Instale
-sudo dpkg -i merlin-ia_*_amd64.deb
-
-# Execute
-merlin-ia
-```
-
-Outros formatos: Windows (`.exe`), macOS (`.dmg`), Linux (`.rpm` e `AppImage`) em [Build do Zero](./docs/build-do-zero.md).
-
-## Como Funciona
-
-1. Adicione seus documentos na pasta `scrolls/`.
-2. O Merlin indexa o conteúdo e gera embeddings localmente.
-3. A pergunta entra pelo CLI ou pela UI desktop.
-4. O RAG recupera os trechos relevantes e o Merlin responde com contexto.
-5. Se necessário, o Linux Agent executa ações operacionais no sistema.
-
-## Comandos do Linux Agent
-
-Digite estes comandos diretamente no chat:
-
-- `/linux-diagnose ssh 50` para diagnóstico detalhado do serviço SSH.
-- `/linux-install nginx` para instalação de pacote com fluxo seguro.
-- `/linux-harden ssh` para aplicar configurações de hardening no SSH.
-- `/linux-lockdown` para ativar modo de proteção com superfície reduzida.
-
-## Avaliação Técnica Rápida
-
-Para um recrutador ou engenheiro técnico, estes pontos dão a leitura mais rápida do projeto:
-
-- [Case do projeto](./docs/case.md)
-- [Guia de instalação](./docs/01-instalacao.md)
-- [Como usar](./docs/02-como-usar.md)
-- [Comandos do Linux Agent](./docs/18-merlin-cli-commands.md)
-- [API local](./docs/api.md)
-- [Build e empacotamento](./docs/build-do-zero.md)
-- [Suíte de testes](./tests)
-
-## Para Desenvolvedores
+## Setup Rápido
 
 ```bash
 git clone https://github.com/N1ghthill/merlin-ia.git
 cd merlin-ia
+
+sudo apt install -y python3 python3-pip python3-venv
+
 python3 -m venv .venv
 source .venv/bin/activate
+pip install --upgrade pip
 pip install -r requirements.txt -r requirements-dev.txt
-
-# Rodar testes
-pytest tests/ -v
-
-# Rodar UI desktop
-cd electron
-npm install
-npm start
-
-# Gerar pacote .deb
-npm run dist:deb
+pip install -e .
+ollama pull qwen2.5:7b
 ```
+
+## Comandos Principais
+
+```bash
+source .venv/bin/activate
+merlin-ia
+merlin-api --port 3030
+merlin-index
+```
+
+## Fluxo de Uso
+
+1. Inicie o CLI com `merlin-ia`.
+2. Rode `/paths` para ver diretórios ativos de `scrolls`, histórico e índice.
+3. Adicione arquivos `.md` e `.txt` ao diretório `scrolls_dir`.
+4. Faça a pergunta no terminal.
+5. Se quiser forçar reindexação, use `/index_scrolls` ou `merlin-index`.
+
+Comandos úteis no CLI:
+
+- `/help`
+- `/paths`
+- `/profile`
+- `/set <chave> <valor>`
+- `/index_scrolls`
+- `/reindex`
+- `/linux-diagnose ssh 50`
+- `/linux-install nginx`
+
+## Persistência e Paths
+
+O Merlin escolhe o modo de armazenamento em runtime:
+
+- Em um clone Git gravável, tende a usar `project`, mantendo dados em `./data` e documentos em `./scrolls`.
+- Fora desse cenário, usa `user`, com paths XDG em `~/.local/share/merlin-ia` e `~/.local/state/merlin-ia`.
+- Você pode fixar o comportamento com `MERLIN_STORAGE_MODE=project` ou `MERLIN_STORAGE_MODE=user`.
+- Também é possível sobrescrever caminhos individualmente com `MERLIN_SCROLLS_DIR`, `MERLIN_HISTORY_PATH`, `MERLIN_CHROMA_DIR` e variáveis correlatas.
+
+O comando `/paths` expõe os caminhos realmente ativos na sessão.
+
+## Linux Agent
+
+O executor Linux é opcional e vem desligado por padrão.
+
+```bash
+export MERLIN_ENABLE_EXECUTOR=1
+merlin-ia
+```
+
+O fluxo de escrita continua protegido:
+
+- `dry-run` antes de executar
+- confirmação explícita
+- ACL
+- log de auditoria
+
+## Qualidade
+
+- Repositório com 91 testes versionados.
+- Workflow do GitHub Actions executa a suíte versionada em `tests/`.
+- `make compile` valida a compilação dos módulos Python.
+
+## Estrutura do projeto
+
+- `merlin_cli.py`: entrada principal do CLI.
+- `merlin_api.py`: API HTTP local.
+- `rag_indexer.py`: reindexação completa do RAG.
+- `merlin/`: paths, handlers e integração com o Linux Agent.
+- `executor/`: executor Unix socket com validação, ACL e auditoria.
+- `scripts/`: atalhos de execução para desenvolvimento local.
+- `docs/`: instalação, uso, API e documentação operacional.
+
+## Documentação Essencial
+
+- [Índice da documentação](./docs/README.md)
+- [Case técnico](./docs/case.md)
+- [Arquitetura](./docs/arquitetura.md)
+- [Instalação](./docs/01-instalacao.md)
+- [Como usar](./docs/02-como-usar.md)
+- [API local](./docs/api.md)
+- [Comandos do CLI](./docs/18-merlin-cli-commands.md)
+- [Linux Agent](./docs/04-linux-agent-executor.md)
 
 ## Contribuindo
 
-Contribuições em código, documentação e validação de ambientes são bem-vindas. O fluxo inicial está em [CONTRIBUTING.md](./CONTRIBUTING.md).
+O fluxo base está em [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## Licença
 
-MIT - use, modifique e compartilhe livremente.
-
-## Contato
-
-Para oportunidades ligadas a automação inteligente, agentes locais e produtos com privacidade forte: `irving@ruas.dev.br`.
+MIT.

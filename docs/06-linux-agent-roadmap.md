@@ -1,4 +1,7 @@
-# Linux Agent Roadmap (Executable)
+# Linux Agent Roadmap (Historical Planning Roadmap)
+
+This document records the staged implementation plan used during the Linux Agent build-out.
+It is preserved for engineering context, not as the current source of truth.
 
 This roadmap translates requirements into a staged, executable plan with clear entry and exit criteria.
 
@@ -90,4 +93,3 @@ Exit Criteria:
 - Phase 2 depends on Phase 1 executor stability.
 - Phase 3 depends on a safe confirmation flow and access controls.
 - Phase 4 depends on validated read/write execution in controlled environments.
-

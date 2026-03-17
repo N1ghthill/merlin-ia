@@ -1,4 +1,7 @@
-# Linux Agent Executor Design (Draft)
+# Linux Agent Executor Design (Historical Draft)
+
+This document captures a design-stage view of the executor.
+For current operational reference, prefer `docs/04-linux-agent-executor.md` and `docs/11-linux-agent-deploy.md`.
 
 This design outlines the executor structure that satisfies the requirements in `docs/05-linux-agent-requirements.md`.
 

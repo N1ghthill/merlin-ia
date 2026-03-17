@@ -1,49 +1,47 @@
-# Build do Zero
+# Bootstrap do Zero
 
-Este guia cobre o fluxo completo para preparar o ambiente de desenvolvimento e gerar pacotes do Merlin IA para distribuição.
-
-## O que este guia cobre
-
-- Preparação do ambiente Python.
-- Dependências do frontend Electron.
-- Geração de artefatos para Linux, Windows e macOS.
+Este guia cobre o bootstrap do Merlin IA a partir de uma máquina Linux limpa.
 
 ## Passo a passo
 
-1. Clone o projeto e configure o ambiente Python:
-
 ```bash
+sudo apt install -y git python3 python3-pip python3-venv
+
 git clone https://github.com/N1ghthill/merlin-ia.git
 cd merlin-ia
+
 python3 -m venv .venv
 source .venv/bin/activate
+pip install --upgrade pip
 pip install -r requirements.txt -r requirements-dev.txt
+pip install -e .
 ```
 
-2. Instale dependências do Electron:
+Instale ou valide o Ollama:
 
 ```bash
-cd electron
-npm install
+ollama --version
+ollama pull qwen2.5:7b
 ```
 
-3. Gere os pacotes desejados:
+## Validação mínima
 
 ```bash
-# Linux (.deb)
-npm run dist:deb
-
-# Linux (.rpm)
-npm run dist:rpm
-
-# Windows (.exe)
-npm run dist:win
-
-# macOS (.dmg)
-npm run dist:mac
+make test
+make compile
+merlin-ia
 ```
 
-## Dicas
+Depois da primeira execução, rode `/paths` para confirmar quais diretórios o runtime selecionou.
 
-- Execute `pytest tests/ -v` antes de empacotar.
-- Publique os artefatos na página de Releases para facilitar instalação.
+## Armazenamento
+
+- Em um clone Git gravável, o modo tende a ser `project`.
+- Fora disso, o fallback é `user`, usando os diretórios XDG do usuário.
+
+Para fixar o modo:
+
+```bash
+export MERLIN_STORAGE_MODE=project
+export MERLIN_STORAGE_MODE=user
+```

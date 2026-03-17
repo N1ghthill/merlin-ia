@@ -1,4 +1,7 @@
-# Linux Agent Execution Plan (Tasks and Order)
+# Linux Agent Execution Plan (Historical Tasks and Order)
+
+This document records the original task ordering used during implementation.
+It remains useful for traceability, but it is not the current operational guide.
 
 This plan breaks the roadmap into actionable tasks with order and dependencies.
 
@@ -43,4 +46,3 @@ This plan breaks the roadmap into actionable tasks with order and dependencies.
 ## Optional Milestones
 - Add `read.*` actions for network and storage diagnostics.
 - Add OS compatibility matrix (Ubuntu/Debian, RHEL, Arch).
-

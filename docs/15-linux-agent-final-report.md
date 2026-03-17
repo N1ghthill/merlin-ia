@@ -1,4 +1,7 @@
-# Linux Agent Final Report (Summary)
+# Linux Agent Final Report (Historical Summary)
+
+This report captures the delivery snapshot and validation context available when it was written.
+Use `docs/17-linux-agent-validation-report.md` for the concrete validation record and `docs/11-linux-agent-deploy.md` for the current deployment guide.
 
 ## Overview
 This repository now includes a safe local Linux agent stack with:
@@ -46,4 +49,3 @@ python3 -m pytest -q
 2. Run container/VM validation (`tests/docker-test.md`).
 3. Deploy to a staging host with systemd + wrappers.
 4. Validate logs, ACL reload, and peer UID/GID gating.
-

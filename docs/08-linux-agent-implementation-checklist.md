@@ -1,5 +1,8 @@
 # Linux Agent Implementation Checklist
 
+This checklist is preserved as an implementation artifact from the Linux Agent delivery phase.
+Use it as historical context, not as the primary entry point for evaluation.
+
 This checklist provides a path-by-path implementation guide.
 
 ## Executor
@@ -57,4 +60,3 @@ Checklist:
 - Keep `docs/06-linux-agent-roadmap.md` as the execution plan.
 - Keep `docs/07-linux-agent-executor-design.md` as the design.
 - Keep `docs/08-linux-agent-implementation-checklist.md` updated.
-

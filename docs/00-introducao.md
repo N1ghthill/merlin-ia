@@ -1,39 +1,48 @@
 # Introdução ao Merlin IA
 
-Este guia apresenta o Merlin IA em poucos minutos para você começar com segurança, produtividade e privacidade local.
+Merlin IA é um assistente local-first para Linux com foco em CLI, API local e automação controlada.
 
-## O que você vai aprender
+## O que o projeto faz
 
-- Qual problema o Merlin resolve.
-- Como iniciar o assistente no modo CLI e no modo gráfico.
-- Como fazer a primeira consulta com base em documentos locais.
+- Consulta documentos locais sem depender de nuvem.
+- Mantém histórico e memória semântica no próprio host.
+- Mantém um fluxo único para chat, RAG e Linux Agent.
 
-## Passo a passo rápido
+## Começo Rápido
 
-1. Prepare o ambiente Python:
+1. Prepare o ambiente:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
+pip install --upgrade pip
 pip install -r requirements.txt -r requirements-dev.txt
+pip install -e .
 ```
 
-2. Garanta que o Ollama esteja disponível localmente:
+2. Garanta o modelo local:
 
 ```bash
-ollama --version
+ollama pull qwen2.5:7b
 ```
 
-3. Inicie o Merlin no terminal:
+3. Inicie o CLI:
 
 ```bash
-python merlin_cli.py
+merlin-ia
 ```
 
-4. Faça uma primeira pergunta baseada em documentos da pasta `scrolls/`.
+4. Consulte os caminhos ativos:
 
-## Próximos guias recomendados
+```text
+/paths
+```
+
+5. Adicione arquivos `.md` e `.txt` ao diretório `scrolls_dir` e faça a primeira pergunta.
+
+## Próximos Documentos
 
 - [Instalação](./01-instalacao.md)
-- [Como Usar](./02-como-usar.md)
-- [Comandos do CLI](./18-merlin-cli-commands.md)
+- [Como usar](./02-como-usar.md)
+- [Arquitetura](./arquitetura.md)
+- [API local](./api.md)
